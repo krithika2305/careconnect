@@ -6,6 +6,9 @@ import '../features/auth/welcome_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/auth/role_selection_screen.dart';
+import '../features/auth/pending_verification_screen.dart';
+import '../features/auth/doctor_credentials_upload_screen.dart';
+import '../features/auth/caregiver_verification_screen.dart';
 import '../features/onboarding/onboarding_screens.dart';
 import '../features/caregiver/invite_loved_one_screen.dart';
 import '../features/patient/patient_dashboard.dart';
@@ -49,6 +52,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             forceCompleteProfile: complete,
           );
         },
+      ),
+      GoRoute(
+        path: '/pending-verification',
+        builder: (context, state) {
+          final role = state.uri.queryParameters['role'] ?? 'caregiver';
+          return PendingVerificationScreen(userRole: role);
+        },
+      ),
+      GoRoute(
+        path: '/doctor/verify-credentials',
+        builder: (context, state) => const DoctorCredentialsUploadScreen(),
+      ),
+      GoRoute(
+        path: '/caregiver/verify-account',
+        builder: (context, state) => const CaregiverVerificationScreen(),
       ),
       GoRoute(
         path: '/loading',

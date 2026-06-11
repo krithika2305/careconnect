@@ -1064,3 +1064,201 @@ final unreadNotificationsCountProvider = FutureProvider<int>((ref) async {
       .eq('is_read', false);
   return data.length;
 });
+
+// ─────────────────────────────────────────────────────────────
+// Verification Providers
+// ─────────────────────────────────────────────────────────────
+
+/// Current user's verification status
+final myVerificationStatusProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final session = ref.watch(authSessionProvider);
+  if (session == null) return null;
+
+  final client = ref.read(supabaseClientProvider);
+  try {
+    return await client
+        .from('users')
+        .select(
+            'verification_status, account_status, verification_requested_at, verification_completed_at, verification_rejected_reason')
+        .eq('id', session.user.id)
+        .maybeSingle();
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Doctor credentials for current user
+final myDoctorCredentialsProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final session = ref.watch(authSessionProvider);
+  if (session == null) return null;
+
+  final client = ref.read(supabaseClientProvider);
+  try {
+    return await client
+        .from('doctor_credentials')
+        .select()
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Caregiver verification for current user
+final myCaregiverVerificationProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final session = ref.watch(authSessionProvider);
+  if (session == null) return null;
+
+  final client = ref.read(supabaseClientProvider);
+  try {
+    return await client
+        .from('caregiver_verification')
+        .select()
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Get verification request for current user
+final myVerificationRequestProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final session = ref.watch(authSessionProvider);
+  if (session == null) return null;
+
+  final client = ref.read(supabaseClientProvider);
+  try {
+    final requests = await client
+        .from('user_verification_requests')
+        .select()
+        .eq('user_id', session.user.id)
+        .order('submitted_at', ascending: false)
+        .limit(1);
+
+    if (requests.isEmpty) return null;
+    return requests.first as Map<String, dynamic>;
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Admin: All pending verification requests
+final pendingVerificationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final client = ref.read(supabaseClientProvider);
+  try {
+    final results = await client
+        .from('user_verification_requests')
+        .select('*, users:user_id(id, name, email, role, created_at)')
+        .eq('status', 'pending')
+        .order('submitted_at', ascending: true);
+
+    return results.cast<Map<String, dynamic>>();
+  } catch (_) {
+    return [];
+  }
+});
+
+/// Admin: Verification metrics
+final verificationMetricsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final client = ref.read(supabaseClientProvider);
+  try {
+    final pending = await client
+        .from('user_verification_requests')
+        .select()
+        .eq('status', 'pending');
+    final approved = await client
+        .from('user_verification_requests')
+        .select()
+        .eq('status', 'approved');
+    final rejected = await client
+        .from('user_verification_requests')
+        .select()
+        .eq('status', 'rejected');
+
+    final pendingDoctors = (pending as List).where((r) => r['role'] == 'doctor').length;
+    final pendingCaregivers = (pending as List).where((r) => r['role'] == 'caregiver').length;
+
+    return {
+      'total_pending': pending.length,
+      'total_approved': approved.length,
+      'total_rejected': rejected.length,
+      'pending_doctors': pendingDoctors,
+      'pending_caregivers': pendingCaregivers,
+    };
+  } catch (_) {
+    return {
+      'total_pending': 0,
+      'total_approved': 0,
+      'total_rejected': 0,
+      'pending_doctors': 0,
+      'pending_caregivers': 0,
+    };
+  }
+});
+
+/// Admin: All pending users (account status PENDING)
+final pendingUsersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final client = ref.read(supabaseClientProvider);
+  try {
+    final results = await client
+        .from('users')
+        .select()
+        .eq('account_status', 'PENDING')
+        .order('created_at', ascending: true);
+
+    return results.cast<Map<String, dynamic>>();
+  } catch (_) {
+    return [];
+  }
+});
+
+/// Admin: Fetch specific user verification details
+final userVerificationDetailsProvider =
+    FutureProvider.family<Map<String, dynamic>?, String>((ref, userId) async {
+  final client = ref.read(supabaseClientProvider);
+  try {
+    final user = await client.from('users').select().eq('id', userId).maybeSingle();
+
+    if (user == null) return null;
+
+    Map<String, dynamic>? credentials;
+    Map<String, dynamic>? caregiver;
+    Map<String, dynamic>? request;
+
+    if (user['role'] == 'doctor') {
+      credentials = await client
+          .from('doctor_credentials')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+    }
+
+    if (user['role'] == 'caregiver') {
+      caregiver = await client
+          .from('caregiver_verification')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+    }
+
+    final requests = await client
+        .from('user_verification_requests')
+        .select()
+        .eq('user_id', userId)
+        .order('submitted_at', ascending: false)
+        .limit(1);
+
+    if (requests.isNotEmpty) {
+      request = requests.first as Map<String, dynamic>;
+    }
+
+    return {
+      'user': user,
+      'credentials': credentials,
+      'caregiver_verification': caregiver,
+      'verification_request': request,
+    };
+  } catch (_) {
+    return null;
+  }
+});

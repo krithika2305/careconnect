@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'admin_users_tab.dart';
 import 'admin_logs_tab.dart';
 import 'admin_stages_tab.dart';
+import 'admin_verification_tab.dart';
 
 class AdminDashboard extends ConsumerStatefulWidget {
   const AdminDashboard({super.key});
@@ -21,7 +22,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -60,6 +61,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
             Tab(icon: Icon(Icons.people_alt_rounded), text: 'Users'),
             Tab(icon: Icon(Icons.help_outline_rounded), text: 'Questions'),
             Tab(icon: Icon(Icons.timeline_rounded), text: 'Stages'),
+            Tab(icon: Icon(Icons.verified_user_rounded), text: 'Verification'),
             Tab(icon: Icon(Icons.article_outlined), text: 'Logs'),
           ],
         ),
@@ -70,6 +72,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           AdminUsersTab(),
           _QuestionsTab(),
           AdminStagesTab(),
+          AdminVerificationTab(),
           AdminLogsTab(),
         ],
       ),

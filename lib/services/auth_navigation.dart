@@ -71,6 +71,50 @@ Future<void> navigateAfterAuth(WidgetRef ref, BuildContext context) async {
   ref.invalidate(userProfileProvider);
 
   final role = profile['role']?.toString();
+  final accountStatus = profile['account_status']?.toString();
+  final verificationStatus = profile['verification_status']?.toString();
+
+  // ── Check account status first ──────────────────────────────
+  if (accountStatus == 'SUSPENDED') {
+    if (!context.mounted) return;
+    context.go('/pending-verification?role=$role');
+    return;
+  }
+
+  // ── Check verification status for doctors & caregivers ──────
+  if (role?.toLowerCase() == 'doctor') {
+    if (verificationStatus == 'UNVERIFIED') {
+      if (!context.mounted) return;
+      context.go('/doctor/verify-credentials');
+      return;
+    }
+    if (verificationStatus == 'PENDING_REVIEW' ||
+        verificationStatus == 'REJECTED') {
+      if (!context.mounted) return;
+      context.go('/pending-verification?role=$role');
+      return;
+    }
+  }
+
+  if (role?.toLowerCase() == 'caregiver') {
+    if (verificationStatus == 'UNVERIFIED') {
+      if (!context.mounted) return;
+      context.go('/caregiver/verify-account');
+      return;
+    }
+    if (verificationStatus == 'PENDING_REVIEW' ||
+        verificationStatus == 'REJECTED') {
+      if (!context.mounted) return;
+      context.go('/pending-verification?role=$role');
+      return;
+    }
+  }
+
+  if (accountStatus == 'PENDING') {
+    if (!context.mounted) return;
+    context.go('/pending-verification?role=$role');
+    return;
+  }
 
   if (role?.toLowerCase() == 'patient') {
     unawaited(Future(() async {
@@ -96,9 +140,15 @@ String? authRedirect({
     '/login',
     '/register',
     '/role-selection',
+    '/pending-verification',
+    '/doctor/verify-credentials',
+    '/caregiver/verify-account',
   };
-  final isPublic =
-      publicRoutes.contains(location) || location.startsWith('/register');
+  final isPublic = publicRoutes.contains(location) ||
+      location.startsWith('/register') ||
+      location.startsWith('/pending-verification') ||
+      location.startsWith('/doctor/verify-credentials') ||
+      location.startsWith('/caregiver/verify-account');
 
   if (!isAuth) {
     return isPublic ? null : '/welcome';
@@ -117,23 +167,6 @@ String? authRedirect({
   final roleFromMetadata = metadata?['role'] as String?;
   final roleLower = roleFromMetadata?.toLowerCase();
 
-  // If auth metadata has a role, use it as the primary source
-  if (roleLower != null) {
-    if (roleLower == 'doctor') {
-      // Doctor goes directly to dashboard, bypassing everything
-      if (location != '/doctor') return '/doctor';
-      return null;
-    }
-    if (roleLower == 'admin') {
-      if (location != '/admin') return '/admin';
-      return null;
-    }
-    if (roleLower == 'patient') {
-      if (location != '/patient') return '/patient';
-      return null;
-    }
-  }
-
   if (profile == null) {
     // No profile and no role in metadata - send to complete profile
     if (location == '/loading') return completeProfileRoute(role: roleFromMetadata);
@@ -144,13 +177,58 @@ String? authRedirect({
   }
 
   final role = profile['role']?.toString().toLowerCase();
-  
-  // Send directly to dashboard, bypassing all onboarding logic
-  if (role == 'doctor' || role == 'admin' || role == 'patient' || role == 'caregiver') {
-    if (isPublic || location == '/loading' || location.startsWith('/onboarding')) {
-      return routeForRole(role, onboardingDone: true);
+  final accountStatus = profile['account_status']?.toString();
+  final verificationStatus = profile['verification_status']?.toString();
+
+  // ── Account is SUSPENDED ────────────────────────────────────
+  if (accountStatus == 'SUSPENDED') {
+    if (isPublic && location == '/pending-verification') return null;
+    return '/pending-verification?role=$role';
+  }
+
+  // ── Account is PENDING ──────────────────────────────────────
+  if (accountStatus == 'PENDING') {
+    if (isPublic && location == '/pending-verification') return null;
+    return '/pending-verification?role=$role';
+  }
+
+  // ── Doctor verification checks ──────────────────────────────
+  if (role == 'doctor') {
+    if (verificationStatus == 'UNVERIFIED') {
+      if (location == '/doctor/verify-credentials') return null;
+      return '/doctor/verify-credentials';
     }
-    return null;
+    if (verificationStatus == 'PENDING_REVIEW' ||
+        verificationStatus == 'REJECTED') {
+      if (location == '/pending-verification') return null;
+      return '/pending-verification?role=$role';
+    }
+    // Doctor is verified - allow dashboard access
+    if (location == '/doctor' || isPublic) return null;
+    return '/doctor';
+  }
+
+  // ── Caregiver verification checks ───────────────────────────
+  if (role == 'caregiver') {
+    if (verificationStatus == 'UNVERIFIED') {
+      if (location == '/caregiver/verify-account') return null;
+      return '/caregiver/verify-account';
+    }
+    if (verificationStatus == 'PENDING_REVIEW' ||
+        verificationStatus == 'REJECTED') {
+      if (location == '/pending-verification') return null;
+      return '/pending-verification?role=$role';
+    }
+    // Caregiver is verified - allow dashboard access
+    if (location == '/caregiver' || isPublic) return null;
+    return '/caregiver';
+  }
+
+  // ── Patient & Admin (no verification needed) ─────────────────
+  if (role == 'patient' || role == 'admin') {
+    final targetRoute = routeForRole(role, onboardingDone: true);
+    if (location == targetRoute || isPublic) return null;
+    return targetRoute;
   }
 
   return null;
