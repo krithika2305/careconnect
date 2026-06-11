@@ -1,0 +1,64 @@
+name: careconnect_app
+description: "AI Dementia Care Platform"
+publish_to: 'none'
+version: 1.0.0+2
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Supabase & auth
+  supabase_flutter: ^2.5.6
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^13.2.0
+
+  # Background & Notifications
+  flutter_local_notifications: ^17.1.2
+  workmanager:
+    git:
+      url: https://github.com/fluttercommunity/flutter_workmanager.git
+      path: workmanager
+      ref: main
+
+  # HTTP (replaces tflite_flutter for AI calls)
+  http: ^1.2.0
+
+  # Location / permissions
+  geolocator: ^11.0.0
+  permission_handler: ^11.3.0
+
+  # Media
+  image_picker: ^1.2.2
+  path_provider: ^2.1.3
+
+  # Charts
+  fl_chart: ^0.66.0
+
+  # Audio (kept for future features)
+  record: ^6.2.0
+
+  # Bluetooth (kept for wearable integration)
+  flutter_blue_plus: ^1.32.7
+
+  # UI
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  shared_preferences: ^2.3.3
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  # NOTE: assets/models/ directory is no longer needed (model lives on backend).
+  # You may remove it safely.
