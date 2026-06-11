@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme.dart';
 import '../../services/providers.dart';
@@ -22,8 +25,13 @@ class _DoctorCredentialsUploadScreenState
   final _medicalSchoolController = TextEditingController();
   final _yearsExperienceController = TextEditingController();
   final _specializationController = TextEditingController();
+  final _picker = ImagePicker();
   bool _boardCertified = false;
   bool _isSubmitting = false;
+  bool _isUploadingDocument = false;
+  String? _licenseDocumentUrl;
+  String? _licenseDocumentName;
+  Uint8List? _licenseDocumentBytes;
 
   @override
   void dispose() {
@@ -35,8 +43,48 @@ class _DoctorCredentialsUploadScreenState
     super.dispose();
   }
 
+  Future<void> _pickLicenseDocument() async {
+    final image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    setState(() => _isUploadingDocument = true);
+    try {
+      final bytes = await image.readAsBytes();
+      final session = ref.read(authSessionProvider);
+      if (session == null) {
+        _showError('Not authenticated');
+        return;
+      }
+      final fileExt = image.name.split('.').last;
+      final fileName = 'doctor_license_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final storagePath = 'verification_documents/doctors/${session.user.id}/$fileName';
+      final url = await VerificationService(ref.read(supabaseClientProvider))
+          .uploadVerificationDocument(
+        bucket: 'careconnect_media',
+        storagePath: storagePath,
+        bytes: bytes,
+      );
+
+      setState(() {
+        _licenseDocumentUrl = url;
+        _licenseDocumentName = image.name;
+        _licenseDocumentBytes = bytes;
+      });
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingDocument = false);
+      }
+    }
+  }
+
   Future<void> _submitCredentials() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_licenseDocumentUrl == null) {
+      _showError('Please upload your medical license document.');
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -58,6 +106,7 @@ class _DoctorCredentialsUploadScreenState
         yearsExperience: yearsExp,
         specialization: _specializationController.text.trim(),
         boardCertified: _boardCertified,
+        licenseDocumentUrl: _licenseDocumentUrl,
       );
 
       if (mounted) {
@@ -213,6 +262,8 @@ class _DoctorCredentialsUploadScreenState
                     },
                   ),
                   const SizedBox(height: 20),
+                  _buildDocumentUploadCard(),
+                  const SizedBox(height: 24),
                   _buildCheckbox(
                     value: _boardCertified,
                     label: 'Board Certified',
@@ -320,6 +371,119 @@ class _DoctorCredentialsUploadScreenState
           style: const TextStyle(color: MedicalTheme.textPrimary),
         ),
       ],
+    );
+  }
+
+  Widget _buildDocumentUploadCard() {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: MedicalTheme.lightBorder),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Upload Medical License',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: MedicalTheme.textPrimary,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Upload a photo or scanned copy of your medical license. We will securely store it and send it for admin review.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: MedicalTheme.lightSlate,
+                    height: 1.5,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _isUploadingDocument ? null : _pickLicenseDocument,
+              icon: _isUploadingDocument
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.upload_file_outlined),
+              label: Text(
+                _licenseDocumentName == null ? 'Upload License Document' : 'Replace Document',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MedicalTheme.primaryTeal,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            if (_licenseDocumentName != null) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.green),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _licenseDocumentName!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _licenseDocumentUrl != null ? _viewSelectedDocument : null,
+                child: const Text('View uploaded document'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _viewSelectedDocument() async {
+    if (_licenseDocumentUrl == null) return;
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: InteractiveViewer(
+          child: Image.network(
+            _licenseDocumentUrl!,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return SizedBox(
+                width: 160,
+                height: 160,
+                child: Center(
+                  child: CircularProgressIndicator(value: progress.expectedTotalBytes != null ? progress.cumulativeBytesLoaded / (progress.expectedTotalBytes ?? 1) : null),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) => Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Unable to preview document. Please try again later.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

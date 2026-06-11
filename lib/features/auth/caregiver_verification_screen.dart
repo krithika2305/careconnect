@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme.dart';
 import '../../services/providers.dart';
@@ -18,9 +21,14 @@ class _CaregiverVerificationScreenState
     extends ConsumerState<CaregiverVerificationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _backgroundController = TextEditingController();
+  final _picker = ImagePicker();
   bool _trainingCertificate = false;
   String _backgroundCheckStatus = 'pending';
   bool _isSubmitting = false;
+  bool _isUploadingDocument = false;
+  String? _idDocumentUrl;
+  String? _idDocumentName;
+  Uint8List? _idDocumentBytes;
 
   @override
   void dispose() {
@@ -28,8 +36,48 @@ class _CaregiverVerificationScreenState
     super.dispose();
   }
 
+  Future<void> _pickIdDocument() async {
+    final image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    setState(() => _isUploadingDocument = true);
+    try {
+      final bytes = await image.readAsBytes();
+      final session = ref.read(authSessionProvider);
+      if (session == null) {
+        _showError('Not authenticated');
+        return;
+      }
+      final fileExt = image.name.split('.').last;
+      final fileName = 'caregiver_id_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final storagePath = 'verification_documents/caregivers/${session.user.id}/$fileName';
+      final url = await VerificationService(ref.read(supabaseClientProvider))
+          .uploadVerificationDocument(
+        bucket: 'careconnect_media',
+        storagePath: storagePath,
+        bytes: bytes,
+      );
+
+      setState(() {
+        _idDocumentUrl = url;
+        _idDocumentName = image.name;
+        _idDocumentBytes = bytes;
+      });
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingDocument = false);
+      }
+    }
+  }
+
   Future<void> _submitVerification() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_idDocumentUrl == null) {
+      _showError('Please upload your caregiver ID document.');
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -46,6 +94,7 @@ class _CaregiverVerificationScreenState
         professionalBackground: _backgroundController.text.trim(),
         trainingCertificate: _trainingCertificate,
         backgroundCheckStatus: _backgroundCheckStatus,
+        idDocumentUrl: _idDocumentUrl,
       );
 
       if (mounted) {
@@ -193,6 +242,8 @@ class _CaregiverVerificationScreenState
                     },
                   ),
                   const SizedBox(height: 24),
+                  _buildDocumentUploadCard(),
+                  const SizedBox(height: 24),
                   _buildLabel('Background Check Status'),
                   const SizedBox(height: 12),
                   _buildDropdown(
@@ -336,6 +387,119 @@ class _CaregiverVerificationScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDocumentUploadCard() {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: MedicalTheme.lightBorder),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Upload Caregiver ID',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: MedicalTheme.textPrimary,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Upload a photo or scanned copy of your caregiver ID or certificate. We store it securely for review.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: MedicalTheme.lightSlate,
+                    height: 1.5,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _isUploadingDocument ? null : _pickIdDocument,
+              icon: _isUploadingDocument
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.upload_file_outlined),
+              label: Text(
+                _idDocumentName == null ? 'Upload ID Document' : 'Replace Document',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MedicalTheme.primaryTeal,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            if (_idDocumentName != null) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.green),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _idDocumentName!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _idDocumentUrl != null ? _viewSelectedDocument : null,
+                child: const Text('View uploaded document'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _viewSelectedDocument() async {
+    if (_idDocumentUrl == null) return;
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: InteractiveViewer(
+          child: Image.network(
+            _idDocumentUrl!,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return SizedBox(
+                width: 160,
+                height: 160,
+                child: Center(
+                  child: CircularProgressIndicator(value: progress.expectedTotalBytes != null ? progress.cumulativeBytesLoaded / (progress.expectedTotalBytes ?? 1) : null),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) => Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Unable to preview document. Please try again later.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

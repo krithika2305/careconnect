@@ -450,6 +450,10 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
               ]),
               const SizedBox(height: 20),
             ],
+            if (request['submitted_documents'] != null) ...[
+              _buildDocumentSection(request['submitted_documents'] as Map<String, dynamic>),
+              const SizedBox(height: 20),
+            ],
             if (status == 'pending') ...[
               Row(
                 children: [
@@ -535,6 +539,106 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
             ),
           )),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentSection(Map<String, dynamic> documents) {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: MedicalTheme.lightBorder),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Uploaded Documents',
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            ...documents.entries.map((entry) {
+              final label = _documentLabel(entry.key);
+              final url = entry.value?.toString() ?? '';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: url.isNotEmpty
+                          ? () => _showDocumentPreview(url)
+                          : null,
+                      child: const Text('View'),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _documentLabel(String key) {
+    switch (key) {
+      case 'license_document_url':
+        return 'Doctor License Document';
+      case 'id_document_url':
+        return 'Caregiver ID Document';
+      default:
+        return key.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
+  Future<void> _showDocumentPreview(String documentUrl) async {
+    await showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: InteractiveViewer(
+          child: Image.network(
+            documentUrl,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return SizedBox(
+                width: 160,
+                height: 160,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    value: progress.expectedTotalBytes != null
+                        ? progress.cumulativeBytesLoaded /
+                            (progress.expectedTotalBytes ?? 1)
+                        : null,
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) => Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Unable to preview document. Please try again later.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

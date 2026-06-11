@@ -21,6 +21,19 @@ class VerificationService {
     }
   }
 
+  Future<String> uploadVerificationDocument({
+    required String bucket,
+    required String storagePath,
+    required List<int> bytes,
+  }) async {
+    try {
+      await _client.storage.from(bucket).uploadBinary(storagePath, bytes);
+      return _client.storage.from(bucket).getPublicUrl(storagePath);
+    } catch (e) {
+      throw Exception('Failed to upload verification document: $e');
+    }
+  }
+
   /// Submit doctor credentials for verification
   Future<void> submitDoctorCredentials({
     required String userId,
@@ -30,6 +43,7 @@ class VerificationService {
     required int yearsExperience,
     required String specialization,
     required bool boardCertified,
+    String? licenseDocumentUrl,
   }) async {
     try {
       // Create or update doctor credentials
@@ -47,16 +61,21 @@ class VerificationService {
         onConflict: 'user_id',
       );
 
+      final submittedDocuments = {
+        'license_number': licenseNumber,
+        'specialization': specialization,
+      };
+      if (licenseDocumentUrl != null) {
+        submittedDocuments['license_document_url'] = licenseDocumentUrl;
+      }
+
       // Create verification request
       await _client.from('user_verification_requests').insert({
         'user_id': userId,
         'role': 'doctor',
         'verification_type': 'credentials',
         'status': 'pending',
-        'submitted_documents': {
-          'license_number': licenseNumber,
-          'specialization': specialization,
-        },
+        'submitted_documents': submittedDocuments,
       });
 
       // Update user status
@@ -75,6 +94,7 @@ class VerificationService {
     required String professionalBackground,
     required bool trainingCertificate,
     required String backgroundCheckStatus,
+    String? idDocumentUrl,
   }) async {
     try {
       // Create or update caregiver verification
@@ -89,16 +109,21 @@ class VerificationService {
         onConflict: 'user_id',
       );
 
+      final submittedDocuments = {
+        'professional_background': professionalBackground,
+        'training_certificate': trainingCertificate,
+      };
+      if (idDocumentUrl != null) {
+        submittedDocuments['id_document_url'] = idDocumentUrl;
+      }
+
       // Create verification request
       await _client.from('user_verification_requests').insert({
         'user_id': userId,
         'role': 'caregiver',
         'verification_type': 'background_and_training',
         'status': 'pending',
-        'submitted_documents': {
-          'professional_background': professionalBackground,
-          'training_certificate': trainingCertificate,
-        },
+        'submitted_documents': submittedDocuments,
       });
 
       // Update user status
