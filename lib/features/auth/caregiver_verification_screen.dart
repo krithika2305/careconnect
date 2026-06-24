@@ -132,6 +132,13 @@ class _CaregiverVerificationScreenState
     return Scaffold(
       backgroundColor: MedicalTheme.lightBg,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () {
+            print('BACK BUTTON PRESSED');
+            context.go('/caregiver');
+          },
+        ),
         title: const Text('Verify Care Partner Account'),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -144,10 +151,10 @@ class _CaregiverVerificationScreenState
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: MedicalTheme.accentBlue.withOpacity(0.1),
+                color: MedicalTheme.primaryTeal.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: MedicalTheme.accentBlue.withOpacity(0.3),
+                  color: MedicalTheme.primaryTeal.withOpacity(0.3),
                 ),
               ),
               child: Column(
@@ -157,7 +164,7 @@ class _CaregiverVerificationScreenState
                     children: [
                       Icon(
                         Icons.info_outline,
-                        color: MedicalTheme.accentBlue,
+                        color: MedicalTheme.primaryTeal,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -200,12 +207,12 @@ class _CaregiverVerificationScreenState
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide:
-                            const BorderSide(color: MedicalTheme.lightBorder),
+                            const BorderSide(color: CareTheme.surfaceLight),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide:
-                            const BorderSide(color: MedicalTheme.lightBorder),
+                            const BorderSide(color: CareTheme.surfaceLight),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -396,7 +403,7 @@ class _CaregiverVerificationScreenState
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: MedicalTheme.lightBorder),
+        side: const BorderSide(color: CareTheme.surfaceLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -512,7 +519,7 @@ class _CaregiverVerificationScreenState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: MedicalTheme.lightBorder),
+        border: Border.all(color: CareTheme.surfaceLight),
       ),
       child: DropdownButton<String>(
         value: value,

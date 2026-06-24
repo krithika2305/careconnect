@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'onboarding_service.dart';
@@ -1039,17 +1041,140 @@ final adminSystemLogsProvider = FutureProvider<Map<String, List<dynamic>>>((ref)
     return {'emergency_alerts': [], 'message_logs': [], 'mri_predictions': []};
   }
 });
+// Helper function to filter notifications based on user relationships and print logs
+Future<List<Map<String, dynamic>>> _filterNotificationsList(
+  SupabaseClient supabase,
+  String currentUserId,
+  String role,
+  List<Map<String, dynamic>> notifications,
+) async {
+  final filtered = <Map<String, dynamic>>[];
+
+  // Fetch caregiver mapping patient IDs
+  final Set<String> linkedPatientIds = {};
+  if (role == 'caregiver') {
+    try {
+      final mappings = await supabase
+          .from('caregiver_patient_mapping')
+          .select('patient_id')
+          .eq('caregiver_id', currentUserId);
+      for (final m in mappings) {
+        final pid = m['patient_id'] as String?;
+        if (pid != null) linkedPatientIds.add(pid);
+      }
+    } catch (_) {}
+  }
+
+  // Fetch doctor mapping patient IDs
+  final Set<String> assignedPatientIds = {};
+  if (role == 'doctor') {
+    try {
+      final mappings = await supabase
+          .from('doctor_patient_mapping')
+          .select('patient_id')
+          .eq('doctor_id', currentUserId)
+          .eq('status', 'accepted');
+      for (final m in mappings) {
+        final pid = m['patient_id'] as String?;
+        if (pid != null) assignedPatientIds.add(pid);
+      }
+    } catch (_) {}
+  }
+
+  for (final n in notifications) {
+    // Extract patient_id from data JSON column if present
+    String? patientId;
+    final rawData = n['data'];
+    if (rawData != null) {
+      Map<String, dynamic>? dataMap;
+      if (rawData is Map) {
+        dataMap = Map<String, dynamic>.from(rawData);
+      } else if (rawData is String) {
+        try {
+          dataMap = jsonDecode(rawData) as Map<String, dynamic>;
+        } catch (_) {}
+      }
+      patientId = dataMap?['patient_id']?.toString();
+    }
+
+    if (patientId == null && role == 'patient') {
+      patientId = currentUserId;
+    }
+
+    List<String> recipientIds = [];
+    bool isVisible = false;
+
+    if (role == 'admin') {
+      recipientIds = [currentUserId];
+      isVisible = n['user_id'] == currentUserId;
+    } else if (role == 'patient') {
+      recipientIds = [currentUserId];
+      // Patients only receive their own notifications
+      isVisible = n['user_id'] == currentUserId;
+    } else if (role == 'doctor') {
+      if (patientId != null) {
+        recipientIds = [currentUserId];
+        isVisible = assignedPatientIds.contains(patientId);
+      } else {
+        recipientIds = [currentUserId];
+        isVisible = n['user_id'] == currentUserId;
+      }
+    } else if (role == 'caregiver') {
+      if (patientId != null) {
+        recipientIds = [currentUserId];
+        isVisible = linkedPatientIds.contains(patientId);
+      } else {
+        recipientIds = [currentUserId];
+        isVisible = n['user_id'] == currentUserId;
+      }
+    }
+
+    // Required debug logs
+    print('NOTIFICATION USER: $currentUserId');
+    print('NOTIFICATION ROLE: $role');
+    print('NOTIFICATION PATIENT: $patientId');
+    print('NOTIFICATION RECIPIENTS: $recipientIds');
+    print('NOTIFICATION FILTER RESULT: ${isVisible ? "allowed" : "blocked"} (title: ${n['title']})');
+
+    if (isVisible) {
+      filtered.add(n);
+    }
+  }
+
+  return filtered;
+}
+
 // Fetch notifications as a Future (not stream) – simpler and avoids stream eq issues
-final userNotificationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final userNotificationsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+
   final supabase = ref.read(supabaseClientProvider);
   final userId = supabase.auth.currentUser?.id;
-  if (userId == null) return [];
+
+  print('========== PROVIDER DEBUG ==========');
+  print('CURRENT USER ID: $userId');
+
+  if (userId == null) {
+    print('USER ID IS NULL');
+    return [];
+  }
+
+  final profile = await ref.watch(userProfileProvider.future);
+  final role = profile?['role']?.toString().toLowerCase() ?? 'patient';
+
   final data = await supabase
       .from('notifications')
       .select()
       .eq('user_id', userId)
       .order('created_at', ascending: false);
-  return List<Map<String, dynamic>>.from(data);
+
+  final list = List<Map<String, dynamic>>.from(data);
+  final filtered = await _filterNotificationsList(supabase, userId, role, list);
+
+  print('NOTIFICATION COUNT: ${filtered.length}');
+  print('NOTIFICATION DATA: $filtered');
+
+  return filtered;
 });
 
 // Unread count – simple Future query
@@ -1057,12 +1182,20 @@ final unreadNotificationsCountProvider = FutureProvider<int>((ref) async {
   final supabase = ref.read(supabaseClientProvider);
   final userId = supabase.auth.currentUser?.id;
   if (userId == null) return 0;
+
+  final profile = await ref.watch(userProfileProvider.future);
+  final role = profile?['role']?.toString().toLowerCase() ?? 'patient';
+
   final data = await supabase
       .from('notifications')
-      .select('id')
+      .select()
       .eq('user_id', userId)
-      .eq('is_read', false);
-  return data.length;
+      .eq('is_read', false)
+      .order('created_at', ascending: false);
+
+  final list = List<Map<String, dynamic>>.from(data);
+  final filtered = await _filterNotificationsList(supabase, userId, role, list);
+  return filtered.length;
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -1261,4 +1394,210 @@ final userVerificationDetailsProvider =
   } catch (_) {
     return null;
   }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Admin Dashboard Stats Providers
+// ─────────────────────────────────────────────────────────────
+
+/// Admin: Dashboard overview statistics
+final adminDashboardStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final client = ref.read(supabaseClientProvider);
+  try {
+    // Get total users by role
+    final allUsers = await client.from('users').select('role, account_status, verification_status');
+    
+    int totalUsers = allUsers.length;
+    int totalDoctors = 0;
+    int totalCaregivers = 0;
+    int totalPatients = 0;
+    int suspendedAccounts = 0;
+    int activeAccounts = 0;
+    int verifiedDoctors = 0;
+    int verifiedCaregivers = 0;
+    
+    for (final user in allUsers) {
+      final role = user['role'] as String?;
+      final accountStatus = user['account_status'] as String?;
+      final verificationStatus = user['verification_status'] as String?;
+      
+      if (role == 'doctor') {
+        totalDoctors++;
+        if (verificationStatus == 'VERIFIED') verifiedDoctors++;
+      } else if (role == 'caregiver') {
+        totalCaregivers++;
+        if (verificationStatus == 'VERIFIED') verifiedCaregivers++;
+      } else if (role == 'patient') {
+        totalPatients++;
+      }
+      
+      if (accountStatus == 'SUSPENDED') suspendedAccounts++;
+      if (accountStatus == 'ACTIVE') activeAccounts++;
+    }
+    
+    // Get pending verifications
+    final pendingVerifications = await client
+        .from('user_verification_requests')
+        .select()
+        .eq('status', 'pending');
+    
+    // Get emergency alerts
+    int emergencyAlerts = 0;
+    try {
+      final alerts = await client
+          .from('emergency_alerts')
+          .select()
+          .eq('resolved', false);
+      emergencyAlerts = alerts.length;
+    } catch (_) {
+      emergencyAlerts = 0;
+    }
+    
+    return {
+      'total_users': totalUsers,
+      'total_doctors': totalDoctors,
+      'total_caregivers': totalCaregivers,
+      'total_patients': totalPatients,
+      'pending_verifications': pendingVerifications.length,
+      'verified_doctors': verifiedDoctors,
+      'verified_caregivers': verifiedCaregivers,
+      'suspended_accounts': suspendedAccounts,
+      'active_accounts': activeAccounts,
+      'emergency_alerts': emergencyAlerts,
+    };
+  } catch (e) {
+    return {
+      'total_users': 0,
+      'total_doctors': 0,
+      'total_caregivers': 0,
+      'total_patients': 0,
+      'pending_verifications': 0,
+      'verified_doctors': 0,
+      'verified_caregivers': 0,
+      'suspended_accounts': 0,
+      'active_accounts': 0,
+      'emergency_alerts': 0,
+    };
+  }
+});
+
+/// Admin: Audit logs for dashboard
+final adminAuditLogsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final client = ref.read(supabaseClientProvider);
+  try {
+    final results = await client
+        .from('audit_logs')
+        .select('*, admin_users:admin_user_id(name, email), target_users:target_user_id(name, email)')
+        .order('timestamp', ascending: false)
+        .limit(50);
+
+    return results.cast<Map<String, dynamic>>();
+  } catch (_) {
+    return [];
+  }
+});
+
+class AppSettings {
+  final String language;
+  final bool darkMode;
+  final String fontSize; // 'small', 'medium', 'large', 'extra_large'
+  final bool emailNotifications;
+  final bool pushNotifications;
+  final bool emergencyAlerts;
+
+  AppSettings({
+    this.language = 'en',
+    this.darkMode = false,
+    this.fontSize = 'medium',
+    this.emailNotifications = true,
+    this.pushNotifications = true,
+    this.emergencyAlerts = true,
+  });
+
+  AppSettings copyWith({
+    String? language,
+    bool? darkMode,
+    String? fontSize,
+    bool? emailNotifications,
+    bool? pushNotifications,
+    bool? emergencyAlerts,
+  }) {
+    return AppSettings(
+      language: language ?? this.language,
+      darkMode: darkMode ?? this.darkMode,
+      fontSize: fontSize ?? this.fontSize,
+      emailNotifications: emailNotifications ?? this.emailNotifications,
+      pushNotifications: pushNotifications ?? this.pushNotifications,
+      emergencyAlerts: emergencyAlerts ?? this.emergencyAlerts,
+    );
+  }
+}
+
+class AppSettingsNotifier extends StateNotifier<AppSettings> {
+  AppSettingsNotifier() : super(AppSettings()) {
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = AppSettings(
+        language: prefs.getString('language') ?? 'en',
+        darkMode: prefs.getBool('darkMode') ?? false,
+        fontSize: prefs.getString('fontSize') ?? 'medium',
+        emailNotifications: prefs.getBool('email_notifications') ?? true,
+        pushNotifications: prefs.getBool('push_notifications') ?? true,
+        emergencyAlerts: prefs.getBool('emergency_alerts') ?? true,
+      );
+      print('SETTING LOADED: language=${state.language}, darkMode=${state.darkMode}, fontSize=${state.fontSize}');
+    } catch (e) {
+      print('Error loading settings: $e');
+    }
+  }
+
+  Future<void> setLanguage(String value) async {
+    state = state.copyWith(language: value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('language', value);
+    print('SETTING SAVED: language=$value');
+  }
+
+  Future<void> setDarkMode(bool value) async {
+    state = state.copyWith(darkMode: value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkMode', value);
+    print('SETTING SAVED: darkMode=$value');
+  }
+
+  Future<void> setFontSize(String value) async {
+    state = state.copyWith(fontSize: value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('fontSize', value);
+    print('SETTING SAVED: fontSize=$value');
+  }
+
+  Future<void> setEmailNotifications(bool value) async {
+    state = state.copyWith(emailNotifications: value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('email_notifications', value);
+    print('SETTING SAVED: email_notifications=$value');
+  }
+
+  Future<void> setPushNotifications(bool value) async {
+    state = state.copyWith(pushNotifications: value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('push_notifications', value);
+    print('SETTING SAVED: push_notifications=$value');
+  }
+
+  Future<void> setEmergencyAlerts(bool value) async {
+    state = state.copyWith(emergencyAlerts: value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('emergency_alerts', value);
+    print('SETTING SAVED: emergency_alerts=$value');
+  }
+}
+
+final appSettingsProvider = StateNotifierProvider<AppSettingsNotifier, AppSettings>((ref) {
+  return AppSettingsNotifier();
 });

@@ -7,6 +7,8 @@ import '../../services/providers.dart';
 import '../shared/questionnaire_scoring.dart';
 import 'doctor_prescription_screen.dart';
 import '../../services/notification_service.dart';
+import '../video_call/zego_call_service.dart';
+import '../video_call/consultation_service.dart';
 
 /// Clinical tools for a selected patient (trends, staging, prescriptions list).
 class DoctorClinicalPanel extends ConsumerStatefulWidget {
@@ -33,6 +35,84 @@ class _DoctorClinicalPanelState extends ConsumerState<DoctorClinicalPanel> {
   ];
 
   bool _assigningStage = false;
+  bool _startingConsultation = false;
+
+  Future<void> _startConsultation() async {
+    setState(() => _startingConsultation = true);
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final doctorId = client.auth.currentUser!.id;
+      final profile = ref.read(userProfileProvider).valueOrNull;
+      final doctorName = profile?['name'] ?? 'Doctor';
+
+      // 1. Fetch mapped caregiver id if any
+      final caregiverMapping = await client
+          .from('caregiver_patient_mapping')
+          .select('caregiver_id')
+          .eq('patient_id', widget.patientId)
+          .maybeSingle();
+      final caregiverId = caregiverMapping?['caregiver_id'] as String? ?? '';
+
+      // 2. Generate unique room ID
+      final roomId = 'room_${DateTime.now().millisecondsSinceEpoch}_${doctorId.substring(0, 4)}';
+
+      // 3. Create consultation record in Supabase
+      final consultation = await client.from('consultations').insert({
+        'room_id': roomId,
+        'doctor_id': doctorId,
+        'patient_id': widget.patientId,
+        'caregiver_id': caregiverId.isEmpty ? null : caregiverId,
+        'status': 'pending',
+        'started_at': DateTime.now().toUtc().toIso8601String(),
+      }).select().single();
+
+      final consultationId = consultation['id'].toString();
+
+      // 4. Send notifications
+      // To patient
+      await NotificationService.send(
+        userId: widget.patientId,
+        title: 'Doctor Consultation Request',
+        body: 'Doctor Consultation Request',
+        type: 'consultation_request',
+        data: {'room_id': roomId, 'consultation_id': consultationId},
+      );
+
+      // To caregiver if linked
+      if (caregiverId.isNotEmpty) {
+        await NotificationService.send(
+          userId: caregiverId,
+          title: 'Doctor started consultation',
+          body: 'Doctor started consultation',
+          type: 'consultation_started',
+          data: {'room_id': roomId, 'consultation_id': consultationId},
+        );
+      }
+
+      if (mounted) {
+        // 5. Open Zego video call room
+        await ZegoCallService.startCall(
+          context,
+          client,
+          consultationId: consultationId,
+          roomId: roomId,
+          userId: doctorId,
+          userName: doctorName,
+          isDoctor: true,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to start consultation: $e'), backgroundColor: CareTheme.error),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _startingConsultation = false);
+      }
+    }
+  }
 
   Future<void> _assignStage() async {
     String selected = _stageOptions.first;
@@ -180,6 +260,8 @@ class _DoctorClinicalPanelState extends ConsumerState<DoctorClinicalPanel> {
             color: MedicalTheme.darkSlate,
           ),
         ),
+        const SizedBox(height: 16),
+        _buildConsultationCard(),
         const SizedBox(height: 16),
         _buildCognitiveTrend(responsesAsync, mriAsync),
         const SizedBox(height: 20),
@@ -590,6 +672,44 @@ class _DoctorClinicalPanelState extends ConsumerState<DoctorClinicalPanel> {
                   }).toList(),
                 );
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConsultationCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Telehealth Video Consultation',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: MedicalTheme.darkSlate),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Start a live video call. The patient and caregiver will receive an instant notification to join.',
+              style: TextStyle(fontSize: 13, color: MedicalTheme.lightSlate),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: MedicalTheme.primaryTeal),
+                onPressed: _startingConsultation ? null : _startConsultation,
+                icon: _startingConsultation
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.video_call_rounded),
+                label: Text(_startingConsultation ? 'Starting...' : 'Start Consultation'),
+              ),
             ),
           ],
         ),

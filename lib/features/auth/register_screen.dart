@@ -50,6 +50,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         return 'Person Receiving Care';
       case 'doctor':
         return 'Clinician';
+      case 'admin':
+        return 'Administrator';
       default:
         return 'Care Partner';
     }
@@ -65,8 +67,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _showError('Please enter your full name.');
     return;
   }
-  if (name.length < 2) {
-    _showError('Name must be at least 2 characters.');
+  if (name.length < 3) {
+    _showError('Name must be at least 3 characters.');
+    return;
+  }
+
+  if (name.length > 50) {
+    _showError('Name cannot exceed 50 characters.');
+    return;
+  }
+
+  if (!RegExp(r"^[a-zA-Z ]+$").hasMatch(name)) {
+    _showError('Name can only contain letters and spaces.');
     return;
   }
 
@@ -75,10 +87,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _showError('Please enter your email address.');
     return;
   }
-  if (!_isValidEmail(email)) {
-    _showError('Please enter a valid email address (e.g., name@example.com).');
+  if (email.length > 100) {
+    _showError('Email is too long.');
     return;
   }
+  if (!_isValidEmail(email)) {
+    _showError(
+      'Invalid email address. Example: abc@gmail.com',
+    );
+    return;
+  }
+  if (_isDisposableEmail(email)) {
+    _showError('Temporary email addresses are not allowed.');
+    return;
+  }
+
 
   // 3. Password validation (only if not completing profile)
   if (!_completingProfile) {
@@ -91,7 +114,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
     if (!_isStrongPassword(password)) {
-      _showError('Password must contain at least one uppercase letter, one lowercase letter, and one number.');
+      _showError('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.');
       return;
     }
   }
@@ -142,10 +165,62 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           content: Text(
             _completingProfile
                 ? 'Profile saved. Welcome to CareConnect!'
-                : 'Account created. Welcome to CareConnect!',
+                : 'Account created successfully!',
           ),
         ),
       );
+      final currentUser = client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not found');
+      }
+      // Admin flow - immediate activation, no verification needed
+      if (!_completingProfile && selectedRole == 'admin') {
+        await client
+            .from('users')
+            .update({
+              'verification_status': 'VERIFIED',
+              'account_status': 'ACTIVE',
+            })
+            .eq('id', currentUser.id);
+
+        if (mounted) {
+          context.go('/admin');
+        }
+        return;
+      }
+
+      // Doctor verification flow
+      if (!_completingProfile && selectedRole == 'doctor') {
+        await client
+            .from('users')
+            .update({
+              'verification_status': 'UNVERIFIED',
+              'account_status': 'PENDING',
+            })
+            .eq('id', currentUser.id);
+
+        if (mounted) {
+          context.go('/doctor/verify-credentials');
+        }
+        return;
+      }
+
+      // Caregiver verification flow
+      if (!_completingProfile && selectedRole == 'caregiver') {
+        await client
+            .from('users')
+            .update({
+              'verification_status': 'UNVERIFIED',
+              'account_status': 'PENDING',
+            })
+            .eq('id', currentUser.id);
+
+        if (mounted) {
+          context.go('/caregiver/verify-account');
+        }
+        return;
+      }
+
       await navigateAfterAuth(ref, context);
     }
   } catch (e) {
@@ -164,13 +239,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 }
   bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com)$',
+      caseSensitive: false,
+    );
 
+    return emailRegex.hasMatch(email.trim());
+  }
+  bool _isDisposableEmail(String email) {
+    final blockedDomains = [
+      'mailinator.com',
+      '10minutemail.com',
+      'guerrillamail.com',
+      'tempmail.com',
+    ];
+
+    return blockedDomains.any(
+      (domain) => email.toLowerCase().endsWith(domain),
+    );
+  }
   bool _isStrongPassword(String password) {
-    return RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(password);
+    return RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$%^&*(),.?":{}|<>])[A-Za-z\d!@#\$%^&*(),.?":{}|<>]{8,}$',
+    ).hasMatch(password);
   }
-
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),

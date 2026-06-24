@@ -75,30 +75,41 @@ class AlertsScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: MedicalTheme.accentGreen.withOpacity(0.08),
+                              color: Colors.grey.withOpacity(0.08),
                               shape: BoxShape.circle,
-                              border: Border.all(color: MedicalTheme.accentGreen.withOpacity(0.16), width: 2),
+                              border: Border.all(
+                                color: Colors.grey.withOpacity(0.2),
+                                width: 2,
+                              ),
                             ),
                             child: const Icon(
-                              Icons.verified_user_rounded,
+                              Icons.notifications_none_rounded,
                               size: 56,
-                              color: MedicalTheme.accentGreen,
+                              color: Colors.grey,
                             ),
                           ),
+
                           const SizedBox(height: 20),
+
                           const Text(
-                            "System Stable",
+                            "No Active Alerts",
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
                               color: MedicalTheme.darkSlate,
                             ),
                           ),
-                          const SizedBox(height: 6),
+
+                          const SizedBox(height: 8),
+
                           const Text(
-                            "Patient cognitive assessments show no high risk flags.",
+                            "Patient is currently safe.\nNo SOS alerts or critical health warnings detected.",
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: MedicalTheme.lightSlate, fontSize: 13),
+                            style: TextStyle(
+                              color: MedicalTheme.lightSlate,
+                              fontSize: 14,
+                              height: 1.4,
+                            ),
                           ),
                         ],
                       ),

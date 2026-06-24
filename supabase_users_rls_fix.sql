@@ -99,10 +99,15 @@ BEGIN
   PERFORM set_config('row_security', 'off', true);
 
   SELECT json_build_object(
-    'id',    u.id,
-    'name',  u.name,
-    'role',  u.role,
-    'email', u.email
+    'id',                        u.id,
+    'name',                      u.name,
+    'role',                      u.role,
+    'email',                     u.email,
+    'account_status',            u.account_status,
+    'verification_status',       u.verification_status,
+    'verification_requested_at', u.verification_requested_at,
+    'verification_completed_at', u.verification_completed_at,
+    'verification_rejected_reason', u.verification_rejected_reason
   )
   INTO result
   FROM public.users u

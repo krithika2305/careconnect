@@ -14,6 +14,8 @@ import 'patient_appointments_section.dart';
 import '../shared/medication_reminder_card.dart';
 import '../../services/notification_service.dart';
 import '../../core/widgets/notification_bell.dart';
+import '../video_call/consultation_service.dart';
+import '../video_call/incoming_consultation_card.dart';
 
 class PatientDashboard extends ConsumerStatefulWidget {
   const PatientDashboard({super.key});
@@ -290,7 +292,28 @@ class _DashboardContent extends StatelessWidget {
               _CareStageCard(stage: careStage!),
               const SizedBox(height: 20),
             ],
-            const Text("Today's Reminders", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)), 
+            Consumer(
+              builder: (context, ref, _) {
+                final activeConsultAsync = ref.watch(activeConsultationProvider);
+                return activeConsultAsync.when(
+                  data: (consultation) {
+                    if (consultation != null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: IncomingConsultationCard(
+                          consultation: consultation,
+                          role: 'patient',
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                );
+              },
+            ),
+            const Text("Today's Reminders", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
             const SizedBox(height: 12),
             if (patientId != null) _RemindersList(patientId: patientId!),
             const SizedBox(height: 20),

@@ -119,7 +119,7 @@ class _DoctorCredentialsUploadScreenState
         ref.invalidate(myVerificationStatusProvider);
         ref.invalidate(myDoctorCredentialsProvider);
         ref.invalidate(myVerificationRequestProvider);
-        context.go('/pending-verification');
+        context.go('/pending-verification?role=doctor');
       }
     } catch (e) {
       _showError(e.toString());
@@ -144,6 +144,16 @@ class _DoctorCredentialsUploadScreenState
     return Scaffold(
       backgroundColor: MedicalTheme.lightBg,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.logout),
+          onPressed: () async {
+            await ref.read(supabaseClientProvider).auth.signOut();
+
+            if (mounted) {
+              context.go('/login');
+            }
+          },
+        ),
         title: const Text('Verify Medical Credentials'),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -156,10 +166,10 @@ class _DoctorCredentialsUploadScreenState
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: MedicalTheme.accentBlue.withOpacity(0.1),
+                color: MedicalTheme.primaryTeal.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: MedicalTheme.accentBlue.withOpacity(0.3),
+                  color: MedicalTheme.primaryTeal.withOpacity(0.3),
                 ),
               ),
               child: Column(
@@ -169,7 +179,7 @@ class _DoctorCredentialsUploadScreenState
                     children: [
                       Icon(
                         Icons.info_outline,
-                        color: MedicalTheme.accentBlue,
+                        color: MedicalTheme.primaryTeal,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -349,11 +359,11 @@ class _DoctorCredentialsUploadScreenState
             fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: MedicalTheme.lightBorder),
+              borderSide: const BorderSide(color: CareTheme.surfaceLight),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: MedicalTheme.lightBorder),
+              borderSide: const BorderSide(color: CareTheme.surfaceLight),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -380,7 +390,7 @@ class _DoctorCredentialsUploadScreenState
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: MedicalTheme.lightBorder),
+        side: const BorderSide(color: CareTheme.surfaceLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),

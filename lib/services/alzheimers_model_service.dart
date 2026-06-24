@@ -41,7 +41,7 @@ class AlzheimersModelService {
     if (const bool.fromEnvironment('dart.library.html')) {
       return 'http://localhost:5000';
     }
-    if (Platform.isAndroid) return 'http://192.168.1.6:5000';
+    if (Platform.isAndroid) return 'http://192.168.43.181:5000';
     return 'http://localhost:5000';
   }
 

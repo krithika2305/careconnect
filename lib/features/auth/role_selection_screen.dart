@@ -51,14 +51,14 @@ class RoleSelectionScreen extends ConsumerWidget {
             children: [
               const SizedBox(height: 8),
               Text(
-                'Choose your role',
+                "How will you use CareConnect?",
                 style: CareTheme.displaySerif.copyWith(fontSize: 28),
               ),
               const SizedBox(height: 8),
               Text(
                 isLoggedIn
                     ? 'Your account exists but needs a role. Pick one to continue.'
-                    : 'Each role has tools tailored for dementia and Alzheimer\'s care.',
+                    : "Choose the experience that best fits your needs.",
                 style: CareTheme.bodySans.copyWith(fontSize: 14),
               ),
               const SizedBox(height: 28),
@@ -84,6 +84,13 @@ class RoleSelectionScreen extends ConsumerWidget {
                       title: 'Clinician',
                       subtitle: 'Review MRI insights, staging, and patient progress.',
                       onTap: () => context.go('/register?role=doctor'),
+                    ),
+                    const SizedBox(height: 12),
+                    _RoleTile(
+                      icon: Icons.admin_panel_settings_rounded,
+                      title: 'Administrator',
+                      subtitle: 'Manage users, verify credentials, and oversee platform operations.',
+                      onTap: () => context.go('/register?role=admin'),
                     ),
                   ],
                 ),

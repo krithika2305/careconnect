@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Service for user verification submissions and queries
@@ -24,7 +26,7 @@ class VerificationService {
   Future<String> uploadVerificationDocument({
     required String bucket,
     required String storagePath,
-    required List<int> bytes,
+    required Uint8List bytes,
   }) async {
     try {
       await _client.storage.from(bucket).uploadBinary(storagePath, bytes);

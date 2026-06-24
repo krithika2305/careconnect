@@ -11,21 +11,25 @@ class UserProfileService {
     final sessionId = _client.auth.currentSession?.user.id;
     if (sessionId == null) return null;
 
+    // TEMPORARILY DISABLE RPC
+    /*
     try {
       final data = await _client.rpc('get_my_profile');
       if (data is Map) {
         return Map<String, dynamic>.from(data);
       }
-    } catch (_) {
-      // RPC not deployed yet — fall back to direct query
-    }
+    } catch (_) {}
+    */
 
     try {
       final row = await _client
           .from('users')
-          .select('id, name, role, email')
+          .select(
+            'id, name, role, email, account_status, verification_status, verification_requested_at, verification_completed_at, verification_rejected_reason',
+          )
           .eq('id', userId)
           .maybeSingle();
+          print('PROFILE DATA: $row');
       return row;
     } catch (e) {
       throw Exception('Could not load profile: $e');

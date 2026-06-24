@@ -87,7 +87,7 @@ class _AdminStagesTabState extends ConsumerState<AdminStagesTab> {
           children: [
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -95,93 +95,103 @@ class _AdminStagesTabState extends ConsumerState<AdminStagesTab> {
                       'Assign patient stage',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 14,
                         color: MedicalTheme.darkSlate,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _selectedPatientId,
-                      decoration: const InputDecoration(labelText: 'Patient'),
+                      decoration: const InputDecoration(
+                        labelText: 'Patient',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
                       items: patients
                           .map(
                             (p) => DropdownMenuItem(
                               value: p['id'] as String,
                               child: Text(
                                 '${p['name'] ?? 'Patient'} (${p['email'] ?? ''})',
+                                style: const TextStyle(fontSize: 12),
                               ),
                             ),
                           )
                           .toList(),
                       onChanged: (v) => setState(() => _selectedPatientId = v),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       value: _selectedStage,
-                      decoration: const InputDecoration(labelText: 'Stage'),
+                      decoration: const InputDecoration(
+                        labelText: 'Stage',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
                       items: _stageOptions
-                          .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                          .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
                           .toList(),
                       onChanged: (v) =>
                           setState(() => _selectedStage = v ?? _stageOptions.first),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     TextField(
                       controller: _notesCtrl,
-                      maxLines: 3,
+                      maxLines: 2,
                       decoration: const InputDecoration(
                         labelText: 'Notes (optional)',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
+                      height: 40,
                       child: ElevatedButton(
                         onPressed: _saving ? null : _assignStage,
-                        child: Text(_saving ? 'Saving…' : 'Activate stage'),
+                        child: Text(_saving ? 'Saving…' : 'Activate stage', style: const TextStyle(fontSize: 13)),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             const Text(
               'Stage history',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 15,
+                fontSize: 14,
                 color: MedicalTheme.darkSlate,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             if (_selectedPatientId == null)
               const Text(
                 'Select a patient to view stage history.',
-                style: TextStyle(color: MedicalTheme.lightSlate),
+                style: TextStyle(color: MedicalTheme.lightSlate, fontSize: 12),
               )
             else
               stagesAsync!.when(
                 loading: () => const Padding(
-                  padding: EdgeInsets.all(24),
+                  padding: EdgeInsets.all(16),
                   child: Center(child: CircularProgressIndicator()),
                 ),
-                error: (e, _) => Text('Error: $e'),
+                error: (e, _) => Text('Error: $e', style: const TextStyle(fontSize: 12)),
                 data: (stages) {
                   if (stages.isEmpty) {
                     return const Text(
                       'No stages assigned yet.',
-                      style: TextStyle(color: MedicalTheme.lightSlate),
+                      style: TextStyle(color: MedicalTheme.lightSlate, fontSize: 12),
                     );
                   }
                   return Column(
                     children: stages.map((s) {
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
+                        margin: const EdgeInsets.only(bottom: 6),
                         child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           title: Text(
                             s['stage']?.toString() ?? 'Unknown',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                           ),
                           subtitle: Text(
                             [
@@ -189,6 +199,7 @@ class _AdminStagesTabState extends ConsumerState<AdminStagesTab> {
                                 s['stage_notes'].toString(),
                               s['assigned_at']?.toString().substring(0, 10) ?? '',
                             ].join('\n'),
+                            style: const TextStyle(fontSize: 11),
                           ),
                         ),
                       );

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme.dart';
 import 'services/supabase_service.dart';
 import 'core/router.dart';
+import 'services/providers.dart';
 
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -92,6 +93,29 @@ void callbackDispatcher() {
                   'status': 'ACTIVE',
                   'message': 'Patient has left the safe zone. Current distance: ${distance.toStringAsFixed(1)}m',
                 });
+
+                // Fetch linked caregivers to notify them
+                final mappings = await supabase
+                    .from('caregiver_patient_mapping')
+                    .select('caregiver_id')
+                    .eq('patient_id', userId);
+                if (mappings != null) {
+                  for (final m in mappings) {
+                    final caregiverId = m['caregiver_id'] as String?;
+                    if (caregiverId != null) {
+                      await NotificationService.send(
+                        userId: caregiverId,
+                        title: '🚨 Geofence Breach Alert',
+                        body: '$userName has left the safe zone!',
+                        type: 'geofence_breach',
+                        data: {
+                          'patient_id': userId,
+                          'distance': distance,
+                        },
+                      );
+                    }
+                  }
+                }
               }
             }
           }
@@ -213,13 +237,34 @@ class CareConnectApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    
+    final settings = ref.watch(appSettingsProvider);
+
+    double fontScale = 1.0;
+    if (settings.fontSize == 'small') fontScale = 0.85;
+    if (settings.fontSize == 'large') fontScale = 1.15;
+    if (settings.fontSize == 'extra_large') fontScale = 1.3;
+
     return MaterialApp.router(
       title: 'CareConnect',
       debugShowCheckedModeBanner: false,
       theme: CareTheme.lightTheme,
-      themeMode: ThemeMode.light,
+      darkTheme: CareTheme.darkTheme,
+      themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
+      locale: Locale(settings.language),
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('es', ''),
+        Locale('fr', ''),
+      ],
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(fontScale),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }

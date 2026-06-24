@@ -18,49 +18,50 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
     {
       "question": "Has the patient recently had difficulty remembering recent events or conversations?",
       "options": [
-        {"text": "Not at all", "score": 0},
-        {"text": "Sometimes", "score": 1},
+        {"text": "Never", "score": 0},
+        {"text": "Occasionally", "score": 1},
         {"text": "Frequently", "score": 2},
-        {"text": "Always", "score": 3},
+        {"text": "Almost Always", "score": 3},
       ],
     },
     {
       "question": "Does the patient struggle to find the right words or communicate thoughts clearly?",
       "options": [
-        {"text": "Not at all", "score": 0},
-        {"text": "Sometimes", "score": 1},
+        {"text": "Never", "score": 0},
+        {"text": "Occasionally", "score": 1},
         {"text": "Frequently", "score": 2},
-        {"text": "Always", "score": 3},
+        {"text": "Almost Always", "score": 3},
       ],
     },
     {
       "question": "Have you noticed any confusion regarding time, date, or familiar places?",
       "options": [
-        {"text": "No confusion", "score": 0},
-        {"text": "Occasional mild confusion", "score": 1},
-        {"text": "Frequent confusion", "score": 2},
-        {"text": "Severe disorientation", "score": 3},
+        {"text": "Never", "score": 0},
+        {"text": "Occasionally", "score": 1},
+        {"text": "Frequently", "score": 2},
+        {"text": "Almost Always", "score": 3},
       ],
     },
     {
       "question": "Are there sudden mood swings, withdrawal from social activities, or signs of apathy?",
       "options": [
-        {"text": "Normal behavior", "score": 0},
-        {"text": "Mild mood changes", "score": 1},
-        {"text": "Noticeable withdrawal", "score": 2},
-        {"text": "Severe apathy/aggression", "score": 3},
+        {"text": "Never", "score": 0},
+        {"text": "Occasionally", "score": 1},
+        {"text": "Frequently", "score": 2},
+        {"text": "Almost Always", "score": 3},
       ],
     },
     {
       "question": "Does the patient have trouble with routine tasks like managing finances, cooking, or personal hygiene?",
       "options": [
-        {"text": "Fully independent", "score": 0},
-        {"text": "Needs occasional help", "score": 1},
-        {"text": "Requires daily assistance", "score": 2},
-        {"text": "Completely dependent", "score": 3},
+        {"text": "Independent", "score": 0},
+        {"text": "Needs Some Help", "score": 1},
+        {"text": "Needs Regular Help", "score": 2},
+        {"text": "Fully Dependent", "score": 3},
       ],
     }
   ];
+  
 
   void _answerQuestion(int score) {
     _score += score;
@@ -111,7 +112,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                "Note: This is a preliminary assessment tool and does not replace professional clinical diagnosis. Combine these results with MRI diagnostics for a comprehensive overview.",
+                "Note: This assessment provides an early indication of cognitive decline and does not replace professional medical diagnosis.",
                 style: TextStyle(fontSize: 12, color: MedicalTheme.lightSlate, fontStyle: FontStyle.italic),
               )
             ],
@@ -166,6 +167,16 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
                 "Question ${_currentQuestionIndex + 1} of ${_questions.length}",
                 style: const TextStyle(color: MedicalTheme.lightSlate, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+
+              const Text(
+                'Please answer based on the patient’s behaviour over the last 30 days.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: MedicalTheme.lightSlate,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 32),
               Card(

@@ -276,10 +276,10 @@ class _DoctorDashboardState extends ConsumerState<DoctorDashboard> {
 
     final mriAsync = activePatientId != null
         ? ref.watch(patientMriHistoryProvider(activePatientId))
-        : ref.watch(mriHistoryProvider);
+        : const AsyncValue.data([]);
     final alertsAsync = activePatientId != null
         ? ref.watch(patientEmergencyHistoryProvider(activePatientId))
-        : ref.watch(emergencyHistoryProvider);
+        : const AsyncValue.data([]);
 
     return Scaffold(
       backgroundColor: MedicalTheme.lightBg,
@@ -331,6 +331,30 @@ class _DoctorDashboardState extends ConsumerState<DoctorDashboard> {
                         _doctorHeaderCard(doctorName),
                         const SizedBox(height: 16),
                         _patientSelectorSection(patientsAsync),
+                        if (patientList.isEmpty)
+                          Card(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.people_outline, size: 60),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'No patients assigned yet',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Patient records, MRI predictions and emergency alerts will appear once a patient is assigned to you.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         if (activePatientId != null) ...[
                           const SizedBox(height: 16),
                           _clinicalRecordButton(activePatientId, activePatientName),

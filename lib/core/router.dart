@@ -17,6 +17,7 @@ import '../features/doctor/doctor_dashboard.dart';
 import '../features/admin/admin_dashboard.dart';
 import '../services/providers.dart';
 import '../services/auth_navigation.dart';
+import '../features/about/about_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -37,6 +38,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: '/role-selection',

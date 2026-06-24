@@ -84,115 +84,6 @@ class AdminVerificationService {
     }
   }
 
-  /// Approve doctor verification
-  Future<void> approveDoctorVerification({
-    required String verificationRequestId,
-    required String userId,
-    String? adminNotes,
-  }) async {
-    try {
-      final adminId = _client.auth.currentUser?.id;
-      if (adminId == null) {
-        throw Exception('Admin not authenticated');
-      }
-
-      // Update verification request
-      await _client.from('user_verification_requests').update({
-        'status': 'approved',
-        'reviewed_at': DateTime.now().toIso8601String(),
-        'reviewed_by': adminId,
-        'admin_notes': adminNotes,
-      }).eq('id', verificationRequestId);
-
-      // Update user status
-      await _client.from('users').update({
-        'verification_status': 'VERIFIED',
-        'account_status': 'ACTIVE',
-        'verification_completed_at': DateTime.now().toIso8601String(),
-        'verified_by': adminId,
-      }).eq('id', userId);
-
-      // Update doctor credentials as verified
-      await _client.from('doctor_credentials').update({
-        'verified_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId);
-    } catch (e) {
-      throw Exception('Failed to approve doctor verification: $e');
-    }
-  }
-
-  /// Approve caregiver verification
-  Future<void> approveCaregiverVerification({
-    required String verificationRequestId,
-    required String userId,
-    String? adminNotes,
-  }) async {
-    try {
-      final adminId = _client.auth.currentUser?.id;
-      if (adminId == null) {
-        throw Exception('Admin not authenticated');
-      }
-
-      // Update verification request
-      await _client.from('user_verification_requests').update({
-        'status': 'approved',
-        'reviewed_at': DateTime.now().toIso8601String(),
-        'reviewed_by': adminId,
-        'admin_notes': adminNotes,
-      }).eq('id', verificationRequestId);
-
-      // Update user status
-      await _client.from('users').update({
-        'verification_status': 'VERIFIED',
-        'account_status': 'ACTIVE',
-        'verification_completed_at': DateTime.now().toIso8601String(),
-        'verified_by': adminId,
-      }).eq('id', userId);
-
-      // Update caregiver verification as verified
-      await _client.from('caregiver_verification').update({
-        'verified_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId);
-    } catch (e) {
-      throw Exception('Failed to approve caregiver verification: $e');
-    }
-  }
-
-  /// Reject verification request
-  Future<void> rejectVerification({
-    required String verificationRequestId,
-    required String userId,
-    required String rejectionReason,
-    String? adminNotes,
-  }) async {
-    try {
-      final adminId = _client.auth.currentUser?.id;
-      if (adminId == null) {
-        throw Exception('Admin not authenticated');
-      }
-
-      // Update verification request
-      await _client.from('user_verification_requests').update({
-        'status': 'rejected',
-        'reviewed_at': DateTime.now().toIso8601String(),
-        'reviewed_by': adminId,
-        'rejection_reason': rejectionReason,
-        'admin_notes': adminNotes,
-      }).eq('id', verificationRequestId);
-
-      // Update user status
-      await _client.from('users').update({
-        'verification_status': 'REJECTED',
-        'account_status': 'SUSPENDED',
-        'verification_completed_at': DateTime.now().toIso8601String(),
-        'verification_rejected_reason': rejectionReason,
-        'verified_by': adminId,
-      }).eq('id', userId);
-    } catch (e) {
-      throw Exception('Failed to reject verification: $e');
-    }
-  }
-
   /// Get all pending users (accounts in PENDING status)
   Future<List<Map<String, dynamic>>> getPendingUsers() async {
     try {
@@ -270,6 +161,205 @@ class AdminVerificationService {
       return verif;
     } catch (e) {
       throw Exception('Failed to fetch caregiver verification: $e');
+    }
+  }
+
+  /// Log audit entry for admin actions
+  Future<void> _logAuditEntry({
+    required String action,
+    required String adminUserId,
+    String? targetUserId,
+    String? targetRole,
+    Map<String, dynamic>? details,
+  }) async {
+    try {
+      await _client.from('audit_logs').insert({
+        'action': action,
+        'admin_user_id': adminUserId,
+        'target_user_id': targetUserId,
+        'target_role': targetRole,
+        'timestamp': DateTime.now().toIso8601String(),
+        'details': details ?? {},
+      });
+    } catch (e) {
+      // Log error but don't throw to avoid blocking main operation
+      print('Failed to log audit entry: $e');
+    }
+  }
+
+  /// Approve doctor verification with audit logging
+  Future<void> approveDoctorVerification({
+    required String verificationRequestId,
+    required String userId,
+    String? adminNotes,
+  }) async {
+    try {
+      final adminId = _client.auth.currentUser?.id;
+      if (adminId == null) {
+        throw Exception('Admin not authenticated');
+      }
+
+      // Get user role for audit log
+      final user = await _client.from('users').select('role').eq('id', userId).maybeSingle();
+      final targetRole = user?['role'] as String?;
+
+      // Update verification request
+      await _client.from('user_verification_requests').update({
+        'status': 'approved',
+        'reviewed_at': DateTime.now().toIso8601String(),
+        'reviewed_by': adminId,
+        'admin_notes': adminNotes,
+      }).eq('id', verificationRequestId);
+
+      // Update user status
+      await _client.from('users').update({
+        'verification_status': 'VERIFIED',
+        'account_status': 'ACTIVE',
+        'verification_completed_at': DateTime.now().toIso8601String(),
+        'verified_by': adminId,
+      }).eq('id', userId);
+
+      // Update doctor credentials as verified
+      await _client.from('doctor_credentials').update({
+        'verified_at': DateTime.now().toIso8601String(),
+      }).eq('user_id', userId);
+
+      // Log audit entry
+      await _logAuditEntry(
+        action: 'APPROVE_DOCTOR_VERIFICATION',
+        adminUserId: adminId,
+        targetUserId: userId,
+        targetRole: targetRole,
+        details: {
+          'verification_request_id': verificationRequestId,
+          'admin_notes': adminNotes,
+        },
+      );
+    } catch (e) {
+      throw Exception('Failed to approve doctor verification: $e');
+    }
+  }
+
+  /// Approve caregiver verification with audit logging
+  Future<void> approveCaregiverVerification({
+    required String verificationRequestId,
+    required String userId,
+    String? adminNotes,
+  }) async {
+    try {
+      final adminId = _client.auth.currentUser?.id;
+      if (adminId == null) {
+        throw Exception('Admin not authenticated');
+      }
+
+      // Get user role for audit log
+      final user = await _client.from('users').select('role').eq('id', userId).maybeSingle();
+      final targetRole = user?['role'] as String?;
+
+      // Update verification request
+      await _client.from('user_verification_requests').update({
+        'status': 'approved',
+        'reviewed_at': DateTime.now().toIso8601String(),
+        'reviewed_by': adminId,
+        'admin_notes': adminNotes,
+      }).eq('id', verificationRequestId);
+
+      // Update user status
+      await _client.from('users').update({
+        'verification_status': 'VERIFIED',
+        'account_status': 'ACTIVE',
+        'verification_completed_at': DateTime.now().toIso8601String(),
+        'verified_by': adminId,
+      }).eq('id', userId);
+
+      // Update caregiver verification as verified
+      await _client.from('caregiver_verification').update({
+        'verified_at': DateTime.now().toIso8601String(),
+      }).eq('user_id', userId);
+
+      // Log audit entry
+      await _logAuditEntry(
+        action: 'APPROVE_CAREGIVER_VERIFICATION',
+        adminUserId: adminId,
+        targetUserId: userId,
+        targetRole: targetRole,
+        details: {
+          'verification_request_id': verificationRequestId,
+          'admin_notes': adminNotes,
+        },
+      );
+    } catch (e) {
+      throw Exception('Failed to approve caregiver verification: $e');
+    }
+  }
+
+  /// Reject verification request with audit logging
+  Future<void> rejectVerification({
+    required String verificationRequestId,
+    required String userId,
+    required String rejectionReason,
+    String? adminNotes,
+  }) async {
+    try {
+      final adminId = _client.auth.currentUser?.id;
+      if (adminId == null) {
+        throw Exception('Admin not authenticated');
+      }
+
+      // Get user role for audit log
+      final user = await _client.from('users').select('role').eq('id', userId).maybeSingle();
+      final targetRole = user?['role'] as String?;
+
+      // Update verification request
+      await _client.from('user_verification_requests').update({
+        'status': 'rejected',
+        'reviewed_at': DateTime.now().toIso8601String(),
+        'reviewed_by': adminId,
+        'rejection_reason': rejectionReason,
+        'admin_notes': adminNotes,
+      }).eq('id', verificationRequestId);
+
+      // Update user status
+      await _client.from('users').update({
+        'verification_status': 'REJECTED',
+        'account_status': 'SUSPENDED',
+        'verification_completed_at': DateTime.now().toIso8601String(),
+        'verification_rejected_reason': rejectionReason,
+        'verified_by': adminId,
+      }).eq('id', userId);
+
+      // Log audit entry
+      await _logAuditEntry(
+        action: 'REJECT_VERIFICATION',
+        adminUserId: adminId,
+        targetUserId: userId,
+        targetRole: targetRole,
+        details: {
+          'verification_request_id': verificationRequestId,
+          'rejection_reason': rejectionReason,
+          'admin_notes': adminNotes,
+        },
+      );
+    } catch (e) {
+      throw Exception('Failed to reject verification: $e');
+    }
+  }
+
+  /// Get audit logs for admin dashboard
+  Future<List<Map<String, dynamic>>> getAuditLogs({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      final results = await _client
+          .from('audit_logs')
+          .select('*, admin_users:admin_user_id(name, email), target_users:target_user_id(name, email)')
+          .order('timestamp', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      return results.cast<Map<String, dynamic>>();
+    } catch (e) {
+      throw Exception('Failed to fetch audit logs: $e');
     }
   }
 }

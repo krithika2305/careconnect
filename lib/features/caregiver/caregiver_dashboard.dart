@@ -27,6 +27,8 @@ import '../shared/medication_reminder_card.dart';
 import '../shared/chat_screen.dart';
 import 'widgets/caregiver_ui.dart';
 import '../../core/widgets/notification_bell.dart';
+import '../video_call/consultation_service.dart';
+import '../video_call/incoming_consultation_card.dart';
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -649,62 +651,6 @@ class _CaregiverDashboardState extends ConsumerState<CaregiverDashboard> {
     }
   }
 
-  Future<void> _uploadMriForDoctor(String patientId, String patientName) async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image == null) return;
-
-    final client = ref.read(supabaseClientProvider);
-    final caregiverId = client.auth.currentUser!.id;
-
-    // Find assigned doctor
-    final doctorMapping = await client
-        .from('doctor_patient_mapping')
-        .select('doctor_id')
-        .eq('patient_id', patientId)
-        .eq('status', 'accepted')
-        .maybeSingle();
-
-    if (doctorMapping == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No doctor assigned. Please assign a doctor first.')),
-        );
-      }
-      return;
-    }
-
-    final doctorId = doctorMapping['doctor_id'] as String;
-    final fileExt = image.path.split('.').last;
-    final fileName = 'mri_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-    final filePath = 'mri_uploads/$fileName';
-
-    try {
-      await client.storage.from('mri_scans').upload(filePath, File(image.path));
-      final imageUrl = client.storage.from('mri_scans').getPublicUrl(filePath);
-
-      await client.from('chat_messages').insert({
-        'sender_id': caregiverId,
-        'receiver_id': doctorId,
-        'patient_id': patientId,
-        'message': '📷 MRI uploaded for $patientName.',
-        'metadata': jsonEncode({'type': 'mri_request', 'image_url': imageUrl}),
-        'is_read': false,
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('MRI sent to doctor'), backgroundColor: MedicalTheme.accentGreen),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e'), backgroundColor: MedicalTheme.accentCoral),
-        );
-      }
-    }
-  }
 
   Future<void> _resolveAlert(String alertId) async {
     setState(() {
@@ -936,6 +882,14 @@ class _CaregiverDashboardState extends ConsumerState<CaregiverDashboard> {
                           ),
                         ),
                         const SizedBox(height: 20),
+
+                        _AICareInsightCard(
+                          insight: _generateInsight(
+                            latestStage?['stage']?.toString(),
+                            decline,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             Expanded(
@@ -1097,6 +1051,29 @@ class _CaregiverDashboardState extends ConsumerState<CaregiverDashboard> {
                             ),
                           ),
                         const SizedBox(height: 24),
+                        if (patientId != null) ...[
+                          Consumer(
+                            builder: (context, ref, _) {
+                              final activeConsultAsync = ref.watch(activeConsultationProvider);
+                              return activeConsultAsync.when(
+                                data: (consultation) {
+                                  if (consultation != null) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 20),
+                                      child: IncomingConsultationCard(
+                                        consultation: consultation,
+                                        role: 'caregiver',
+                                      ),
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                                loading: () => const SizedBox.shrink(),
+                                error: (_, __) => const SizedBox.shrink(),
+                              );
+                            },
+                          ),
+                        ],
                         CaregiverSectionTitle(
                           title: 'Upcoming visits',
                           actionLabel: 'Manage',
@@ -1306,17 +1283,7 @@ class _CaregiverDashboardState extends ConsumerState<CaregiverDashboard> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _ActionChip(
-                                icon: Icons.medical_services_outlined,
-                                label: 'Upload MRI',
-                                onTap: () => _openWithPatient(
-                                  patientId,
-                                  () => _uploadMriForDoctor(patientId!, patientName),
-                                ),
-                              ),
-                            ),
+                            
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -1374,7 +1341,51 @@ class _CaregiverDashboardState extends ConsumerState<CaregiverDashboard> {
     );
   }
 }
+String _generateInsight(
+  String? stage,
+  double declinePercent,
+) {
+  if (stage == null || stage == 'No stage assigned') {
+    return '''
+No cognitive assessment available.
 
+Recommendation:
+• Complete questionnaire assessment
+• Track memory changes weekly
+• Generate baseline cognitive score
+''';
+  }
+
+  if (declinePercent > 30) {
+    return '''
+Patient shows significant cognitive decline.
+
+Recommendation:
+• Schedule doctor consultation
+• Increase daily supervision
+• Review medication adherence
+''';
+  }
+
+  if (declinePercent > 15) {
+    return '''
+Mild cognitive decline detected.
+
+Recommendation:
+• Continue routine monitoring
+• Repeat assessment next month
+''';
+  }
+
+  return '''
+Patient condition appears stable.
+
+Recommendation:
+• Maintain daily activities
+• Continue medication schedule
+• Reassess periodically
+''';
+}
 // ─────────────────────────────────────────────────────────────
 // Widgets
 // ─────────────────────────────────────────────────────────────
@@ -1683,4 +1694,55 @@ class _ActionChip extends StatelessWidget {
     );
   }
 }
+class _AICareInsightCard extends StatelessWidget {
+  final String insight;
 
+  const _AICareInsightCard({
+    required this.insight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CareTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: CareTheme.accentPink.withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(
+                Icons.auto_awesome,
+                color: CareTheme.accentPink,
+              ),
+              SizedBox(width: 10),
+              Text(
+                'AI Care Insight',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 15),
+
+          Text(
+            insight,
+            style: TextStyle(
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

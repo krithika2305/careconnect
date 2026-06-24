@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../core/theme.dart';
+import '../../core/widgets/care_ui.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -7,104 +10,132 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("About CareConnect", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF0091D5),
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 800),
+      backgroundColor: CareTheme.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0091D5).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.local_hospital, size: 80, color: Color(0xFF0091D5)),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: () => context.pop(),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
                   ),
                 ),
-                const SizedBox(height: 32),
-                const Text(
-                  "Our Mission",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: MedicalTheme.darkSlate,
-                  ),
+              ),
+              const SizedBox(height: 10),
+
+              const CareHeartHero(size: 160),
+
+              const SizedBox(height: 20),
+
+              Text(
+                "Welcome to CareConnect",
+                textAlign: TextAlign.center,
+                style: CareTheme.displaySerif.copyWith(
+                  fontSize: 32,
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  "CareConnect is a comprehensive healthcare management platform dedicated to bridging the gap between patients, caregivers, and medical professionals. Our mission is to leverage advanced technology, including AI, to provide better monitoring, diagnosis, and care for those suffering from cognitive decline and Alzheimer's disease.",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: MedicalTheme.lightSlate,
-                    height: 1.6,
-                  ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Text(
+                "Helping caregivers, families, and clinicians provide safer, more connected dementia care.",
+                textAlign: TextAlign.center,
+                style: CareTheme.bodySans.copyWith(
+                  fontSize: 16,
                 ),
-                const SizedBox(height: 32),
-                const Text(
-                  "Features",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: MedicalTheme.darkSlate,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildFeature(Icons.psychology, "AI-Powered Diagnostics", "Utilize advanced machine learning to analyze MRI scans for early detection of cognitive decline."),
-                _buildFeature(Icons.family_restroom, "Caregiver Tools", "Empower caregivers with intuitive dashboards, telemetry monitoring, and cognitive assessment tools."),
-                _buildFeature(Icons.local_hospital, "Clinical Integration", "Seamlessly connect patients with their doctors to provide holistic and continuous care."),
-              ],
-            ),
+              ),
+
+              const SizedBox(height: 40),
+
+              _featureCard(
+                Icons.medication_outlined,
+                "Medication Reminders",
+                "Never miss important medications.",
+              ),
+
+              _featureCard(
+                Icons.location_on_outlined,
+                "Safety Monitoring",
+                "Location and wellbeing tracking.",
+              ),
+
+              _featureCard(
+                Icons.psychology_outlined,
+                "AI Cognitive Insights",
+                "Track cognitive changes over time.",
+              ),
+
+              _featureCard(
+                Icons.emergency_outlined,
+                "Emergency Support",
+                "Quick help when it matters most.",
+              ),
+
+              const SizedBox(height: 20),
+
+              ElevatedButton(
+                onPressed: () {
+                  context.push('/role-selection');
+                },
+                child: const Text("Continue"),
+              ),
+
+              const SizedBox(height: 20),
+            ],
           ),
         ),
+      ),
       ),
     );
   }
 
-  Widget _buildFeature(IconData icon, String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24.0),
+  Widget _featureCard(
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0091D5).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.teal.withOpacity(0.15),
+            child: Icon(
+              icon,
+              color: Colors.teal,
             ),
-            child: Icon(icon, color: const Color(0xFF0091D5), size: 32),
           ),
+
           const SizedBox(width: 16),
-          Expanded(
+
+          Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: MedicalTheme.darkSlate,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
-                  description,
+                  subtitle,
                   style: const TextStyle(
-                    fontSize: 15,
-                    color: MedicalTheme.lightSlate,
-                    height: 1.5,
+                    fontSize: 13,
                   ),
                 ),
               ],

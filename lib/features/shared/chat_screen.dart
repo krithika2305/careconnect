@@ -56,6 +56,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Get the current user's own name (the sender)
     final myProfile = await ref.read(userProfileProvider.future);
     final myName = myProfile?['name'] as String? ?? 'Someone';
+    final isDoctor = myProfile?['role']?.toString().toLowerCase() == 'doctor';
 
     // Insert message into database
     await client.from('chat_messages').insert({
@@ -76,6 +77,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         'sender_id': session.user.id,
       },
     );
+
+    // If sender is doctor, also notify the patient
+    if (isDoctor) {
+      await NotificationService.send(
+        userId: widget.patientId,   // patient's user_id
+        title: 'New Message from Doctor',
+        body: 'Your doctor $myName sent a message: ${message.length > 50 ? '${message.substring(0, 50)}...' : message}',
+        type: 'message',
+        data: {
+          'patient_id': widget.patientId,
+          'sender_id': session.user.id,
+        },
+      );
+    }
     _messageController.clear();
     
     // Invalidate to refresh messages
@@ -596,6 +611,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               userId: widget.otherUserId,
               title: '🧠 MRI Analysis Result',
               body: '${result.label} (${result.confidence.toStringAsFixed(1)}%) - Tap to view.',
+              type: 'mri_result',
+              data: {
+                'prediction': result.label,
+                'confidence': result.confidence,
+                'patient_id': widget.patientId,
+              },
+            );
+
+            // Also notify the patient that MRI result is available
+            await NotificationService.send(
+              userId: widget.patientId,
+              title: '🧠 MRI Analysis Result',
+              body: 'Your doctor analyzed your MRI scan: ${result.label}.',
               type: 'mri_result',
               data: {
                 'prediction': result.label,

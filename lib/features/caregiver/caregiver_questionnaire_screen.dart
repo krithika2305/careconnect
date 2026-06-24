@@ -25,7 +25,12 @@ class _CaregiverQuestionnaireScreenState
   final _notesCtrl = TextEditingController();
   bool _isSubmitting = false;
 
-  static const _options = ['Yes', 'No', 'Sometimes'];
+  static const _options = [
+    'Yes',
+    'Sometimes',
+    'No',
+    'Not Observed',
+  ];
 
   String _currentPeriod() {
     final now = DateTime.now();
@@ -44,6 +49,10 @@ class _CaregiverQuestionnaireScreenState
         score += 2;
       } else if (answer == 'Sometimes') {
         score += 1;
+      } else if (answer == 'No') {
+        score += 0;
+      } else if (answer == 'Not Observed') {
+        score += 0;
       }
     }
     final maxScore = answers.length * 2;
@@ -319,7 +328,7 @@ class _CaregiverQuestionnaireScreenState
               children: _options
                   .map((opt) => Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: _optionButton(id, opt, answer == opt),
                         ),
                       ))
@@ -337,9 +346,19 @@ class _CaregiverQuestionnaireScreenState
       case 'Yes':
         color = MedicalTheme.accentGreen;
         break;
+
+      case 'Sometimes':
+        color = MedicalTheme.accentOrange;
+        break;
+
       case 'No':
         color = MedicalTheme.accentCoral;
         break;
+
+      case 'Not Observed':
+        color = Colors.grey;
+        break;
+
       default:
         color = MedicalTheme.accentOrange;
     }

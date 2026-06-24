@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme.dart';
 import '../../services/providers.dart';
@@ -27,8 +29,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> loginUser() async {
   final email = emailController.text.trim();
   final password = passwordController.text.trim();
+  if (email.length > 100) {
+    _showError('Invalid email.');
+    return;
+  }
 
-  // 1. Basic empty checks
+  if (password.length < 8) {
+    _showError('Invalid credentials.');
+    return;
+  }
+
+  if (password.length > 64) {
+    _showError('Invalid credentials.');
+    return;
+  }
+    // 1. Basic empty checks
   if (email.isEmpty || password.isEmpty) {
     _showError('Please enter your email and password.');
     return;
@@ -44,9 +59,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   try {
     final client = ref.read(supabaseClientProvider);
-    await client.auth
+    final response = await client.auth
         .signInWithPassword(email: email, password: password)
         .timeout(const Duration(seconds: 15));
+
+    final user = response.user;
+    if (user != null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final key = 'login_history_${user.id}';
+        final existing = prefs.getStringList(key) ?? [];
+
+        final record = {
+          'timestamp': DateTime.now().toIso8601String(),
+          'ip_address': '127.0.0.1',
+          'user_agent': 'Windows Desktop App',
+          'email': email,
+        };
+
+        existing.insert(0, jsonEncode(record));
+        if (existing.length > 20) {
+          existing.removeLast();
+        }
+        await prefs.setStringList(key, existing);
+      } catch (e) {
+        print('Error logging login history: $e');
+      }
+    }
 
     if (!mounted) return;
     await navigateAfterAuth(ref, context);

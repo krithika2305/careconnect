@@ -28,6 +28,7 @@ class CareTheme {
   static const Color lightCard = surface;
   static const Color lightText = textPrimary;
   static const Color lightTextMuted = textMuted;
+  static const Color lightSlate = Colors.black87;
 
   static TextStyle get displaySerif => GoogleFonts.playfairDisplay(
         color: textPrimary,
@@ -58,73 +59,89 @@ class CareTheme {
 
   static ThemeData get lightTheme => _buildTheme(Brightness.light);
 
-  /// Fallback — same calm light palette (caregiver screens still reference this).
-  static ThemeData get darkTheme => _buildTheme(Brightness.light);
+  static ThemeData get darkTheme => _buildTheme(Brightness.dark);
 
   static ThemeData _buildTheme(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    
     final base = ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: background,
-      colorScheme: const ColorScheme.light(
-        primary: accentPink,
-        onPrimary: Colors.white,
-        secondary: accentPeach,
-        onSecondary: textPrimary,
-        surface: surface,
-        onSurface: textPrimary,
-        error: error,
-        onError: Colors.white,
-      ),
+      brightness: brightness,
+      scaffoldBackgroundColor: isDark ? const Color(0xFF121212) : background,
+      colorScheme: isDark
+          ? const ColorScheme.dark(
+              primary: accentPink,
+              onPrimary: Colors.white,
+              secondary: accentPeach,
+              onSecondary: Colors.white,
+              surface: Color(0xFF1E1E1E),
+              onSurface: Colors.white,
+              error: error,
+              onError: Colors.white,
+            )
+          : const ColorScheme.light(
+              primary: accentPink,
+              onPrimary: Colors.white,
+              secondary: accentPeach,
+              onSecondary: textPrimary,
+              surface: surface,
+              onSurface: textPrimary,
+              error: error,
+              onError: Colors.white,
+            ),
     );
+
+    final resolvedTextPrimary = isDark ? Colors.white : textPrimary;
+    final resolvedTextSecondary = isDark ? Colors.white70 : textSecondary;
+    final resolvedTextMuted = isDark ? Colors.white54 : textMuted;
 
     return base.copyWith(
       textTheme: TextTheme(
-        headlineLarge: displaySerif.copyWith(fontSize: 32),
-        headlineMedium: displaySerif.copyWith(fontSize: 26),
+        headlineLarge: displaySerif.copyWith(fontSize: 32, color: resolvedTextPrimary),
+        headlineMedium: displaySerif.copyWith(fontSize: 26, color: resolvedTextPrimary),
         titleLarge: bodySans.copyWith(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: resolvedTextPrimary,
         ),
-        bodyLarge: bodySans.copyWith(fontSize: 16, color: textSecondary),
-        bodyMedium: bodySans.copyWith(fontSize: 14, color: textMuted),
+        bodyLarge: bodySans.copyWith(fontSize: 16, color: resolvedTextSecondary),
+        bodyMedium: bodySans.copyWith(fontSize: 14, color: resolvedTextMuted),
         labelLarge: buttonLabel.copyWith(fontSize: 15, color: Colors.white),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: background,
+        backgroundColor: isDark ? const Color(0xFF121212) : background,
         elevation: 0,
         centerTitle: true,
-        foregroundColor: textPrimary,
+        foregroundColor: resolvedTextPrimary,
         titleTextStyle: bodySans.copyWith(
           fontSize: 17,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: resolvedTextPrimary,
         ),
         systemOverlayStyle: lightOverlay,
-        iconTheme: const IconThemeData(color: textPrimary),
+        iconTheme: IconThemeData(color: resolvedTextPrimary),
       ),
       cardTheme: CardThemeData(
-        color: surface,
+        color: isDark ? const Color(0xFF1E1E1E) : surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: surfaceLight),
+          side: BorderSide(color: isDark ? Colors.white12 : surfaceLight),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surface,
+        fillColor: isDark ? const Color(0xFF1E1E1E) : surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        hintStyle: bodySans.copyWith(color: textMuted, fontSize: 14),
-        labelStyle: bodySans.copyWith(color: textSecondary, fontSize: 14),
+        hintStyle: bodySans.copyWith(color: resolvedTextMuted, fontSize: 14),
+        labelStyle: bodySans.copyWith(color: resolvedTextSecondary, fontSize: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: BorderSide(color: textMuted.withValues(alpha: 0.35)),
+          borderSide: BorderSide(color: resolvedTextMuted.withValues(alpha: 0.35)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: BorderSide(color: textMuted.withValues(alpha: 0.35)),
+          borderSide: BorderSide(color: resolvedTextMuted.withValues(alpha: 0.35)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
@@ -136,7 +153,6 @@ class CareTheme {
           backgroundColor: accentPink,
           foregroundColor: Colors.white,
           elevation: 0,
-          // Finite min width — infinity breaks buttons inside Row/Flex.
           minimumSize: const Size(64, 54),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),
@@ -161,49 +177,49 @@ class CareTheme {
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return accentPink;
-          return surfaceLight;
+          return isDark ? Colors.white12 : surfaceLight;
         }),
-        side: BorderSide(color: textMuted.withValues(alpha: 0.5)),
+        side: BorderSide(color: resolvedTextMuted.withValues(alpha: 0.5)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
-      dividerColor: surfaceLight,
+      dividerColor: isDark ? Colors.white12 : surfaceLight,
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: accentPink),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: accentPink,
         foregroundColor: Colors.white,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: textPrimary,
-        contentTextStyle: bodySans.copyWith(color: Colors.white),
+        backgroundColor: resolvedTextPrimary,
+        contentTextStyle: bodySans.copyWith(color: isDark ? Colors.black : Colors.white),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dropdownMenuTheme: DropdownMenuThemeData(
-        textStyle: bodySans.copyWith(color: textPrimary, fontSize: 16),
+        textStyle: bodySans.copyWith(color: resolvedTextPrimary, fontSize: 16),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: surface,
-          labelStyle: bodySans.copyWith(color: textSecondary),
+          fillColor: isDark ? const Color(0xFF1E1E1E) : surface,
+          labelStyle: bodySans.copyWith(color: resolvedTextSecondary),
         ),
         menuStyle: MenuStyle(
-          backgroundColor: WidgetStatePropertyAll(surface),
-          surfaceTintColor: WidgetStatePropertyAll(Colors.transparent),
+          backgroundColor: WidgetStatePropertyAll(isDark ? const Color(0xFF1E1E1E) : surface),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: surface,
+        color: isDark ? const Color(0xFF1E1E1E) : surface,
         surfaceTintColor: Colors.transparent,
-        textStyle: bodySans.copyWith(color: textPrimary, fontSize: 16),
+        textStyle: bodySans.copyWith(color: resolvedTextPrimary, fontSize: 16),
       ),
       listTileTheme: ListTileThemeData(
-        iconColor: textPrimary,
-        textColor: textPrimary,
+        iconColor: resolvedTextPrimary,
+        textColor: resolvedTextPrimary,
         titleTextStyle: bodySans.copyWith(
-          color: textPrimary,
+          color: resolvedTextPrimary,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
-        subtitleTextStyle: bodySans.copyWith(color: textMuted, fontSize: 13),
+        subtitleTextStyle: bodySans.copyWith(color: resolvedTextMuted, fontSize: 13),
       ),
     );
   }
@@ -226,6 +242,10 @@ class MedicalTheme {
   static const Color accentGreen = CareTheme.success;
   static const Color darkSlate = CareTheme.lightText;
   static const Color lightSlate = CareTheme.lightTextMuted;
+  
+  // Backwards-compatible aliases used by generated Phase 2 files
+  static const Color textPrimary = CareTheme.textPrimary;
+  static const Color accentPink = CareTheme.accentPink;
 
   static ThemeData get lightTheme => CareTheme.lightTheme;
 }

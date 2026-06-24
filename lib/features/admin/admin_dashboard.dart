@@ -4,9 +4,15 @@ import '../../core/theme.dart';
 import '../../services/providers.dart';
 import 'package:go_router/go_router.dart';
 import 'admin_users_tab.dart';
+import 'admin_doctors_tab.dart';
+import 'admin_caregivers_tab.dart';
+import 'admin_patients_tab.dart';
 import 'admin_logs_tab.dart';
-import 'admin_stages_tab.dart';
 import 'admin_verification_tab.dart';
+import 'admin_dashboard_overview_tab.dart';
+import 'admin_analytics_tab.dart';
+import 'admin_notifications_tab.dart';
+import 'admin_settings_tab.dart';
 
 class AdminDashboard extends ConsumerStatefulWidget {
   const AdminDashboard({super.key});
@@ -22,7 +28,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 11, vsync: this);
   }
 
   @override
@@ -57,23 +63,38 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard>
           labelColor: MedicalTheme.primaryTeal,
           unselectedLabelColor: MedicalTheme.lightSlate,
           indicatorColor: MedicalTheme.primaryTeal,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
+            Tab(icon: Icon(Icons.dashboard_rounded), text: 'Dashboard'),
             Tab(icon: Icon(Icons.people_alt_rounded), text: 'Users'),
-            Tab(icon: Icon(Icons.help_outline_rounded), text: 'Questions'),
-            Tab(icon: Icon(Icons.timeline_rounded), text: 'Stages'),
+            Tab(icon: Icon(Icons.medical_services_rounded), text: 'Doctors'),
+            Tab(icon: Icon(Icons.favorite_rounded), text: 'Caregivers'),
+            Tab(icon: Icon(Icons.person_rounded), text: 'Patients'),
             Tab(icon: Icon(Icons.verified_user_rounded), text: 'Verification'),
+            Tab(icon: Icon(Icons.analytics_rounded), text: 'Analytics'),
+            Tab(icon: Icon(Icons.help_outline_rounded), text: 'Questions'),
+            Tab(icon: Icon(Icons.notifications_rounded), text: 'Notifications'),
             Tab(icon: Icon(Icons.article_outlined), text: 'Logs'),
+            Tab(icon: Icon(Icons.settings_rounded), text: 'Settings'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          AdminUsersTab(),
-          _QuestionsTab(),
-          AdminStagesTab(),
-          AdminVerificationTab(),
-          AdminLogsTab(),
+        children: [
+          AdminDashboardOverviewTab(tabController: _tabController),
+          const AdminUsersTab(),
+          const AdminDoctorsTab(),
+          const AdminCaregiversTab(),
+          const AdminPatientsTab(),
+          const AdminVerificationTab(),
+          const AdminAnalyticsTab(),
+          const _QuestionsTab(),
+          const AdminNotificationsTab(),
+          const AdminLogsTab(),
+          const AdminSettingsTab(),
         ],
       ),
     );
@@ -209,82 +230,95 @@ class _QuestionCard extends StatelessWidget {
     final isActive = question['is_active'] as bool? ?? true;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: MedicalTheme.primaryTeal.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            '#${question['sort_order']}',
-            style: const TextStyle(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: 10,
+        ),
+        child: ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          leading: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: MedicalTheme.primaryTeal.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '#${question['sort_order']}',
+              style: const TextStyle(
                 color: MedicalTheme.primaryTeal,
                 fontWeight: FontWeight.bold,
-                fontSize: 12),
+                fontSize: 11,
+              ),
+            ),
           ),
-        ),
-        title: Text(
-          question['question'] as String,
-          style: TextStyle(
-            color: isActive ? MedicalTheme.darkSlate : MedicalTheme.lightSlate,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            decoration: isActive ? null : TextDecoration.lineThrough,
+          title: Text(
+            question['question'] as String,
+            style: TextStyle(
+              color:
+                  isActive ? MedicalTheme.darkSlate : MedicalTheme.lightSlate,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              decoration:
+                  isActive ? null : TextDecoration.lineThrough,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        subtitle: Text(
-          question['category'] as String? ?? 'General',
-          style: const TextStyle(
-              color: MedicalTheme.lightSlate, fontSize: 12),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Switch(
+          subtitle: Text(
+            question['category'] as String? ?? 'General',
+            style: const TextStyle(
+              color: MedicalTheme.lightSlate,
+              fontSize: 11,
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Transform.scale(
+                scale: 0.8,
+                child: Switch(
                   value: isActive,
                   activeColor: MedicalTheme.primaryTeal,
                   onChanged: onSwitchChanged,
                 ),
-                Text(
-                  isActive ? 'Active' : 'Off',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isActive
-                        ? MedicalTheme.primaryTeal
-                        : MedicalTheme.lightSlate,
+              ),
+              PopupMenuButton<String>(
+                iconSize: 18,
+                onSelected: (v) {
+                  if (v == 'edit') onEdit();
+                  if (v == 'toggle') onToggle();
+                  if (v == 'delete') onDelete();
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Text(
+                      'Edit',
+                      style: TextStyle(fontSize: 13),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            PopupMenuButton<String>(
-              onSelected: (v) {
-                if (v == 'edit') onEdit();
-                if (v == 'toggle') onToggle();
-                if (v == 'delete') onDelete();
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                PopupMenuItem(
-                  value: 'toggle',
-                  child: Text(isActive ? 'Deactivate' : 'Activate'),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Text(
-                    'Delete',
-                    style: TextStyle(color: MedicalTheme.accentCoral),
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: Text(
+                      isActive ? 'Deactivate' : 'Activate',
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      'Delete',
+                      style: TextStyle(
+                        color: MedicalTheme.accentCoral,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

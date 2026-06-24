@@ -5,7 +5,11 @@ import '../theme.dart';
 
 class CareHeartHero extends StatelessWidget {
   final double size;
-  const CareHeartHero({super.key, this.size = 140});
+
+  const CareHeartHero({
+    super.key,
+    this.size = 220,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,21 +19,18 @@ class CareHeartHero extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          _ring(size * 1.0, 0.12),
-          _ring(size * 0.82, 0.18),
-          _ring(size * 0.64, 0.28),
-          Container(
-            width: size * 0.46,
-            height: size * 0.46,
-            decoration: BoxDecoration(
-              color: CareTheme.surface,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.favorite_border_rounded,
-              size: size * 0.22,
-              color: CareTheme.accentPink,
-            ),
+
+          // Outer rings only
+          _ring(size * 0.90, 0.15),
+          _ring(size * 0.75, 0.22),
+          _ring(size * 0.60, 0.30),
+
+          // Logo (NO ClipOval)
+          Image.asset(
+            'assets/images/brain_heart_logo.png',
+            width: size * 0.95,
+            height: size * 0.95,
+            fit: BoxFit.contain,
           ),
         ],
       ),
@@ -43,14 +44,13 @@ class CareHeartHero extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: CareTheme.accentPink.withValues(alpha: opacity),
-          width: 1.2,
+          color: Colors.teal.withOpacity(opacity),
+          width: 2,
         ),
       ),
     );
   }
 }
-
 class CareLoadingDots extends StatefulWidget {
   const CareLoadingDots({super.key});
 

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/router.dart';
 import '../../core/theme.dart';
 import '../../services/providers.dart';
+import '../../services/auth_navigation.dart';
 
 class PendingVerificationScreen extends ConsumerStatefulWidget {
   final String userRole;
@@ -67,7 +69,10 @@ class _PendingVerificationScreenState
           }
 
           if (verificationStatus == 'VERIFIED') {
-            return _buildVerifiedView(context);
+            return _buildVerifiedView(
+              context,
+              widget.userRole,
+            );
           }
 
           if (verificationStatus == 'REJECTED') {
@@ -136,10 +141,10 @@ class _PendingVerificationScreenState
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: MedicalTheme.accentBlue.withOpacity(0.1),
+              color: MedicalTheme.primaryTeal.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: MedicalTheme.accentBlue.withOpacity(0.3),
+                color: MedicalTheme.primaryTeal.withOpacity(0.3),
               ),
             ),
             child: Column(
@@ -149,7 +154,7 @@ class _PendingVerificationScreenState
                   children: [
                     Icon(
                       Icons.info_outline,
-                      color: MedicalTheme.accentBlue,
+                      color: MedicalTheme.primaryTeal,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -318,7 +323,7 @@ class _PendingVerificationScreenState
           Text(
             'Email: support@careconnect.com',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: MedicalTheme.accentBlue,
+                  color: MedicalTheme.primaryTeal,
                 ),
           ),
           const SizedBox(height: 40),
@@ -396,7 +401,7 @@ class _PendingVerificationScreenState
             Text(
               'Please contact support@careconnect.com',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: MedicalTheme.accentBlue,
+                    color: MedicalTheme.primaryTeal,
                   ),
             ),
           ],
@@ -405,7 +410,7 @@ class _PendingVerificationScreenState
     );
   }
 
-  Widget _buildVerifiedView(BuildContext context) {
+  Widget _buildVerifiedView(BuildContext context,String? role,) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -449,9 +454,10 @@ class _PendingVerificationScreenState
             SizedBox(
               height: 48,
               child: ElevatedButton(
-                onPressed: () => ref.refresh(userProfileProvider).then((_) {
-                  ref.read(routerProvider).refresh();
-                }),
+                onPressed: () async {
+                  print('CONTINUE CLICKED');
+                  await navigateAfterAuth(ref, context);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: MedicalTheme.primaryTeal,
                   shape: RoundedRectangleBorder(

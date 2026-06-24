@@ -19,24 +19,82 @@ class WelcomeScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             children: [
-              const Spacer(flex: 2),
-              const CareHeartHero(size: 150),
-              const SizedBox(height: 36),
-              CareHighlightText(
-                text: "Together, we'll make each day of dementia care a little easier, a little lighter.",
-                highlights: const ['easier', 'lighter'],
+              const SizedBox(height: 50),
+              const CareHeartHero(size: 185),
+              const SizedBox(height: 40),
+              Center(
+                child: SizedBox(
+                  width: 320,
+                  child: CareHighlightText(
+                    text:
+                        "Together, we'll make each day of dementia care a little easier, a little lighter.",
+                    highlights: const ['easier', 'lighter'],
+                  ),
+                ),
               ),
-              const Spacer(flex: 3),
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 1,
+                    color: Colors.teal.shade300,
+                  ),
+                  const SizedBox(width: 16),
+                  const Icon(
+                    Icons.favorite,
+                    color: Colors.pink,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 16),
+                  Container(
+                    width: 60,
+                    height: 1,
+                    color: Colors.teal.shade300,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 50),
               ElevatedButton(
-                onPressed: () => context.push('/role-selection'),
-                child: const Text('Get Started'),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(220, 56),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(35),
+                  ),
+                ),
+                onPressed: () => context.push('/about'),
+                child: const Text(
+                  'Get Started',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
+
               const SizedBox(height: 14),
+
               OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(170, 56),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(35),
+                  ),
+                ),
                 onPressed: () => context.push('/login'),
-                child: const Text('Log In'),
+                child: const Text(
+                  'Log In',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-              const SizedBox(height: 32),
+
+              const Spacer(),
             ],
           ),
         ),

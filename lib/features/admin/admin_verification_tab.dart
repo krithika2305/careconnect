@@ -61,7 +61,7 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
                     _buildMetricCard(
                       title: 'Doctors',
                       count: metrics['pending_doctors'] ?? 0,
-                      color: MedicalTheme.accentBlue,
+                      color: MedicalTheme.primaryTeal,
                       onTap: () => setState(() => _selectedRole = 'doctor'),
                     ),
                     const SizedBox(width: 12),
@@ -222,9 +222,7 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
           color: selected ? MedicalTheme.primaryTeal : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected
-                ? MedicalTheme.primaryTeal
-                : MedicalTheme.lightBorder,
+            color: selected ? MedicalTheme.primaryTeal : CareTheme.surfaceLight,
           ),
         ),
         child: Center(
@@ -270,7 +268,7 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
                     height: 48,
                     decoration: BoxDecoration(
                       color: role == 'doctor'
-                          ? MedicalTheme.accentBlue.withOpacity(0.1)
+                          ? MedicalTheme.primaryTeal.withOpacity(0.1)
                           : MedicalTheme.accentPink.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -280,7 +278,7 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
                             ? Icons.medical_services_outlined
                             : Icons.favorite_rounded,
                         color: role == 'doctor'
-                            ? MedicalTheme.accentBlue
+                            ? MedicalTheme.primaryTeal
                             : MedicalTheme.accentPink,
                       ),
                     ),
@@ -398,7 +396,29 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
         details?['credentials'] as Map<String, dynamic>?;
     final caregiverVerif =
         details?['caregiver_verification'] as Map<String, dynamic>?;
+    final verificationRequest = details?['verification_request'] as Map<String, dynamic>?;
     final status = request['status'] as String? ?? 'pending';
+
+    // Build documents map from credentials or verification request
+    Map<String, dynamic> documents = {};
+    
+    if (role == 'doctor' && credentials != null) {
+      if (credentials['license_document_path'] != null) {
+        documents['license_document_url'] = credentials['license_document_path'];
+      }
+    }
+    
+    if (role == 'caregiver' && caregiverVerif != null) {
+      if (caregiverVerif['certificate_document_path'] != null) {
+        documents['id_document_url'] = caregiverVerif['certificate_document_path'];
+      }
+    }
+    
+    // Also check verification request for submitted documents
+    if (verificationRequest != null && verificationRequest['submitted_documents'] != null) {
+      final submittedDocs = verificationRequest['submitted_documents'] as Map<String, dynamic>;
+      documents.addAll(submittedDocs);
+    }
 
     return DraggableScrollableSheet(
       expand: false,
@@ -422,6 +442,8 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
               ('Name', user?['name'] ?? 'N/A'),
               ('Email', user?['email'] ?? 'N/A'),
               ('Role', role.toUpperCase()),
+              ('Account Status', user?['account_status'] ?? 'N/A'),
+              ('Verification Status', user?['verification_status'] ?? 'N/A'),
               ('Joined', _formatDate(user?['created_at'] ?? '')),
             ]),
             const SizedBox(height: 20),
@@ -430,10 +452,12 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
                 ('License Number', credentials['license_number'] ?? 'N/A'),
                 ('License State', credentials['license_state'] ?? 'N/A'),
                 ('Medical School', credentials['medical_school'] ?? 'N/A'),
-                ('Years Experience', credentials['years_experience']?.toString() ?? 'N/A'),
+                ('Years of Experience', credentials['years_experience']?.toString() ?? 'N/A'),
                 ('Specialization', credentials['specialization'] ?? 'N/A'),
                 ('Board Certified',
                     credentials['board_certified'] == true ? 'Yes' : 'No'),
+                ('Uploaded At', _formatDate(credentials['uploaded_at'] ?? '')),
+                ('Verified At', credentials['verified_at'] != null ? _formatDate(credentials['verified_at']) : 'Not verified'),
               ]),
               const SizedBox(height: 20),
             ],
@@ -447,11 +471,25 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
                         : 'No'),
                 ('Background Check Status',
                     caregiverVerif['background_check_status'] ?? 'N/A'),
+                ('Uploaded At', _formatDate(caregiverVerif['uploaded_at'] ?? '')),
+                ('Verified At', caregiverVerif['verified_at'] != null ? _formatDate(caregiverVerif['verified_at']) : 'Not verified'),
               ]),
               const SizedBox(height: 20),
             ],
-            if (request['submitted_documents'] != null) ...[
-              _buildDocumentSection(request['submitted_documents'] as Map<String, dynamic>),
+            if (verificationRequest != null) ...[
+              _buildDetailSection('Verification Request', [
+                ('Verification Type', verificationRequest['verification_type'] ?? 'N/A'),
+                ('Submitted At', _formatDate(verificationRequest['submitted_at'] ?? '')),
+                ('Status', verificationRequest['status']?.toUpperCase() ?? 'N/A'),
+                if (verificationRequest['reviewed_at'] != null)
+                  ('Reviewed At', _formatDate(verificationRequest['reviewed_at'])),
+                if (verificationRequest['rejection_reason'] != null)
+                  ('Rejection Reason', verificationRequest['rejection_reason']),
+              ]),
+              const SizedBox(height: 20),
+            ],
+            if (documents.isNotEmpty) ...[
+              _buildDocumentSection(documents),
               const SizedBox(height: 20),
             ],
             if (status == 'pending') ...[
@@ -549,7 +587,7 @@ class _AdminVerificationTabState extends ConsumerState<AdminVerificationTab> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: MedicalTheme.lightBorder),
+        side: const BorderSide(color: CareTheme.surfaceLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
